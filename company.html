@@ -2,218 +2,455 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SwipeJobs - Company Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwipeJobs - Employer Portal</title>
+    
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
-        :root { --primary: #007bff; --bg: #f4f7f6; --sidebar: #2c3e50; --text: #333; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+        :root { --c-primary: #0056b3; --c-bg: #f0f2f5; --c-sidebar: #1a252f; --text-dark: #333; --text-light: #666; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
-        /* Layout: PC Sidebar vs Mobile Bottom Nav */
-        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; transition: 0.3s; }
-        .sidebar h2 { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .nav-item:hover, .nav-item.active { background: var(--primary); }
-        
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .screen { display: none; }
+        body { background-color: var(--c-bg); display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- Layout: Sidebar (PC) vs Bottom Nav (Mobile) --- */
+        .sidebar { background: var(--c-sidebar); color: white; width: 260px; display: flex; flex-direction: column; transition: 0.3s; z-index: 50; }
+        .sidebar-header { padding: 25px 20px; background: #0f171e; text-align: center; font-size: 22px; font-weight: bold; color: #4da3ff; }
+        .nav-item { padding: 18px 25px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 15px; color: #aaa; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active-tab { background: var(--c-primary); color: white; border-left: 5px solid #4da3ff; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .screen { display: none; flex: 1; padding: 20px; overflow-y: auto; }
         .screen.active { display: block; }
         
-        /* Forms & Cards */
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, textarea, select, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 15px; }
-        
-        .status-pending { color: #f39c12; font-weight: bold; }
-        .status-approved { color: #27ae60; font-weight: bold; }
-        .billing-banner { background: #ffeaa7; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: none; color: #d35400; font-weight: bold; }
+        /* Auth Screen Centered */
+        #auth-screen { display: flex; justify-content: center; align-items: center; flex-direction: column; background: white; width: 100%; height: 100vh; position: absolute; z-index: 100; }
+        .auth-box { width: 90%; max-width: 400px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 15px; border-top: 5px solid var(--c-primary); }
 
+        /* Form Elements */
+        input, textarea, select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px; outline: none; }
+        input:focus, textarea:focus, select:focus { border-color: var(--c-primary); }
+        button { background-color: var(--c-primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #004494; }
+        .btn-outline { background: transparent; border: 2px solid var(--c-primary); color: var(--c-primary); }
+        .btn-danger { background: #e74c3c; } .btn-success { background: #27ae60; }
+        
+        /* Cards & Lists */
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; position: relative; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #eee; color: #333; display: inline-block; margin-bottom: 10px; }
+        .badge-pending { background: #f39c12; color: white; } .badge-approved { background: #27ae60; color: white; }
+
+        /* Modals */
+        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 500px; max-height: 90%; border-radius: 15px; padding: 25px; overflow-y: auto; position: relative; }
+        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #555; }
+
+        /* Help Assistant FAB */
+        .help-fab { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: #ff9f43; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; z-index: 90; transition: 0.3s; }
+        .help-fab:hover { transform: scale(1.1); }
+
+        /* Mobile View Adjustments */
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; flex-direction: row; position: fixed; bottom: 0; z-index: 100; }
-            .sidebar h2 { display: none; }
-            .nav-item { flex: 1; text-align: center; padding: 10px; font-size: 12px; border-bottom: none; border-right: 1px solid rgba(255,255,255,0.1); }
-            .main-content { margin-bottom: 50px; }
+            .sidebar { width: 100%; height: 65px; flex-direction: row; position: fixed; bottom: 0; z-index: 100; }
+            .sidebar-header { display: none; }
+            .nav-item { flex: 1; padding: 10px 5px; flex-direction: column; gap: 5px; font-size: 11px; border-bottom: none; border-left: none; }
+            .nav-item i { font-size: 20px; }
+            .nav-item.active-tab { border-left: none; border-top: 4px solid #4da3ff; }
+            .main-content { margin-bottom: 65px; }
+            .help-fab { bottom: 85px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Auth Screen -->
-    <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
-        <div class="card" style="width: 100%; max-width: 400px;">
-            <h2 style="text-align: center; color: var(--primary);">Company Login</h2>
-            <input type="email" id="c-email" placeholder="Company Email">
-            <input type="password" id="c-pass" placeholder="Password">
-            <button onclick="loginCompany()">Login</button>
-            <button onclick="registerCompany()" style="background: #333;">Register Company</button>
+    <!-- 1. AUTH SCREEN -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <h2 style="color: var(--c-primary); text-align: center; margin-bottom: 5px;">Employer Portal</h2>
+            <p style="text-align: center; color: #777; margin-bottom: 25px; font-size: 14px;">Login to manage jobs & candidates</p>
+            
+            <input type="email" id="c-login-email" placeholder="Company Email">
+            <input type="password" id="c-login-pass" placeholder="Password">
+            <button onclick="loginCompany()">Secure Login</button>
+            
+            <hr style="margin: 20px 0; border: 0.5px solid #eee;">
+            <button class="btn-outline" onclick="openRegStep1()">Create New Account</button>
         </div>
     </div>
 
-    <!-- Dashboard Sidebar -->
-    <div class="sidebar" id="sidebar" style="display: none;">
-        <h2>Company Portal</h2>
-        <div class="nav-item active" onclick="nav('post-job')">Post Job</div>
-        <div class="nav-item" onclick="nav('my-jobs')">My Jobs & Status</div>
-        <div class="nav-item" onclick="nav('applicants')">Applicants</div>
-        <div class="nav-item" onclick="nav('billing')">Billing & Plan</div>
+    <!-- 2. REGISTRATION POPUPS (Multi-Step) -->
+    <!-- Step 1: ID & Password -->
+    <div id="reg-step1" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModals()">✖</span>
+            <h3 style="margin-bottom: 15px; color: var(--c-primary);">Step 1: Account Setup</h3>
+            <input type="email" id="reg-email" placeholder="Official Email ID *">
+            <input type="password" id="reg-pass" placeholder="Create Password *">
+            <button onclick="goToRegStep2()">Next <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
     </div>
 
-    <!-- Dashboard Content -->
-    <div class="main-content" id="dashboard" style="display: none;">
-        
-        <div id="post-job" class="screen active">
-            <h2>Post a New Vacancy</h2>
-            <div id="billing-warning" class="billing-banner">Your current plan requires payment. Please check Billing tab.</div>
-            <div class="card">
-                <input type="text" id="j-title" placeholder="Job Title (e.g. Graphic Designer)">
-                <input type="text" id="j-salary" placeholder="Salary Package">
-                <input type="text" id="j-vacancy" placeholder="No. of Vacancies">
-                <textarea id="j-desc" placeholder="Job Description & Requirements" rows="4"></textarea>
-                <button onclick="postJob()">Submit for Admin Review</button>
+    <!-- Step 2: Company Details -->
+    <div id="reg-step2" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModals()">✖</span>
+            <h3 style="margin-bottom: 15px; color: var(--c-primary);">Step 2: Company Details</h3>
+            <input type="text" id="reg-cname" placeholder="Company Name *">
+            <input type="text" id="reg-hrname" placeholder="HR Name *">
+            <input type="tel" id="reg-phone" placeholder="Contact Number *">
+            <input type="text" id="reg-city" placeholder="City / Head Office *">
+            <textarea id="reg-about" placeholder="About Company (Optional)" rows="2"></textarea>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-outline" onclick="openRegStep1()">Back</button>
+                <button onclick="registerCompany()">Submit & Create</button>
             </div>
         </div>
+    </div>
 
-        <div id="my-jobs" class="screen">
-            <h2>My Posted Jobs</h2>
+    <!-- 3. DASHBOARD SIDEBAR / BOTTOM NAV -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <div class="sidebar-header"><i class="fa-solid fa-building"></i> SwipeJobs</div>
+        <div class="nav-item active-tab" onclick="switchTab('jobs')" id="tab-jobs">
+            <i class="fa-solid fa-briefcase"></i> <span>My Jobs</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('applicants')" id="tab-applicants">
+            <i class="fa-solid fa-users"></i> <span>Applicants</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('billing')" id="tab-billing">
+            <i class="fa-solid fa-credit-card"></i> <span>Charges</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('profile')" id="tab-profile">
+            <i class="fa-solid fa-gear"></i> <span>Profile</span>
+        </div>
+    </div>
+
+    <!-- 4. MAIN CONTENT SCREENS -->
+    <div class="main-content" id="dashboard" style="display: none;">
+        
+        <!-- A. MY JOBS (Post, Edit, Delete) -->
+        <div id="view-jobs" class="screen active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>My Posted Jobs</h2>
+                <button onclick="openPostJobModal()" style="width: auto; padding: 10px 20px; margin: 0;"><i class="fa-solid fa-plus"></i> Post New Job</button>
+            </div>
+            <div id="billing-warning" style="background:#fff3cd; color:#856404; padding:15px; border-radius:8px; margin-bottom:15px; display:none; border-left: 5px solid #ffeeba;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <b>Billing Alert:</b> Your account requires payment to activate jobs. Check Charges tab.
+            </div>
             <div id="job-list"></div>
         </div>
 
-        <div id="applicants" class="screen">
+        <!-- B. APPLICANTS (Status Update) -->
+        <div id="view-applicants" class="screen">
             <h2>Candidate Applications</h2>
+            <p style="color:#777; margin-bottom: 15px; font-size: 13px;">Manage candidates who swiped right on your jobs.</p>
             <div id="applicant-list"></div>
         </div>
 
-        <div id="billing" class="screen">
-            <h2>Subscription & Billing</h2>
+        <!-- C. BILLING & CHARGES -->
+        <div id="view-billing" class="screen">
+            <h2>Platform Charges & Billing</h2>
+            <div class="card" style="margin-top: 15px; text-align: center; padding: 40px 20px;">
+                <i class="fa-solid fa-file-invoice-dollar" style="font-size: 50px; color: var(--c-primary); margin-bottom: 15px;"></i>
+                <h3>Current Plan: <span id="plan-status" style="color: #27ae60;">Loading...</span></h3>
+                <p id="plan-desc" style="margin-top: 10px; color: #555;"></p>
+                <hr style="margin: 20px 0; border:0.5px solid #eee;">
+                <p style="font-size: 12px; color: #999;">Plan changes are managed by the Administrator.</p>
+            </div>
+        </div>
+
+        <!-- D. PROFILE -->
+        <div id="view-profile" class="screen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Company Profile</h2>
+                <button onclick="logoutCompany()" class="btn-danger" style="width: auto; padding: 8px 15px; margin: 0;"><i class="fa-solid fa-power-off"></i> Logout</button>
+            </div>
             <div class="card">
-                <h3>Current Status: <span id="plan-status">Loading...</span></h3>
-                <p style="margin-top: 10px;" id="plan-desc"></p>
+                <label style="font-size:12px; color:#777;">Company Name</label>
+                <input type="text" id="p-cname">
+                <label style="font-size:12px; color:#777;">HR Contact Name</label>
+                <input type="text" id="p-hrname">
+                <label style="font-size:12px; color:#777;">Contact Number</label>
+                <input type="tel" id="p-phone">
+                <button onclick="updateCompanyProfile()">Save Changes</button>
             </div>
         </div>
     </div>
 
-<script>
-    // Initialize Firebase 
-    const firebaseConfig = {
-  apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
-  authDomain: "swipejobs-a5317.firebaseapp.com",
-  projectId: "swipejobs-a5317",
-  storageBucket: "swipejobs-a5317.firebasestorage.app",
-  messagingSenderId: "916910145870",
-  appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
-                                               };
-                                           
-    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-    const auth = firebase.auth(); const db = firebase.firestore();
-    let currentCompany = null;
-    let companyPlan = { type: 'free', canPost: true };
+    <!-- POST / EDIT JOB MODAL -->
+    <div id="job-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModals()">✖</span>
+            <h3 id="job-modal-title" style="margin-bottom: 15px; color: var(--c-primary);">Post New Job</h3>
+            <input type="hidden" id="j-id">
+            <input type="text" id="j-title" placeholder="Job Title (e.g. Graphic Designer) *">
+            <input type="text" id="j-salary" placeholder="Salary Package (e.g. ₹20k - ₹30k) *">
+            <input type="number" id="j-vacancy" placeholder="No. of Vacancies *">
+            <textarea id="j-desc" placeholder="Job Description & Requirements *" rows="4"></textarea>
+            <button onclick="saveJob()">Save & Submit for Review</button>
+        </div>
+    </div>
 
-    function nav(screenId) {
+    <!-- HELP ASSISTANT BUTTON & MODAL -->
+    <div class="help-fab" onclick="openHelp()"><i class="fa-solid fa-headset"></i></div>
+    <div id="help-modal" class="modal">
+        <div class="modal-content" style="text-align: center; max-width: 350px;">
+            <span class="close-modal" onclick="closeModals()">✖</span>
+            <i class="fa-solid fa-handshake-angle" style="font-size: 50px; color: #ff9f43; margin-bottom: 15px;"></i>
+            <h2>Support Assistant</h2>
+            <p style="color: #666; margin: 15px 0; font-size: 14px;">Agar aapko platform use karne mein koi dikkat aa rahi hai, toh hume contact karein:</p>
+            
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: left;">
+                <p><b><i class="fa-solid fa-phone"></i> Phone:</b> <a href="tel:+919876543210">+91 98765 43210</a></p>
+                <p style="margin-top: 10px;"><b><i class="fa-solid fa-envelope"></i> Email:</b> <a href="mailto:support@swipejobs.com">support@swipejobs.com</a></p>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+    // 1. FIREBASE SETUP
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
+        authDomain: "swipejobs-a5317.firebaseapp.com",
+        projectId: "swipejobs-a5317",
+        storageBucket: "swipejobs-a5317.firebasestorage.app",
+        messagingSenderId: "916910145870",
+        appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+    };
+    
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentCompany = null;
+    let companyPlan = { type: 'free', paid: true };
+
+    // 2. MODAL & TAB CONTROLS
+    function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+    function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
+    
+    function switchTab(tabName) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
-        event.target.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-tab'));
+        document.getElementById(`view-${tabName}`).classList.add('active');
+        document.getElementById(`tab-${tabName}`).classList.add('active-tab');
+    }
+
+    // 3. REGISTRATION FLOW (Multi-Step)
+    function openRegStep1() { document.getElementById('reg-step1').style.display = 'flex'; }
+    function goToRegStep2() {
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        if(!email || !pass) { alert("Enter Email and Password!"); return; }
+        document.getElementById('reg-step1').style.display = 'none';
+        document.getElementById('reg-step2').style.display = 'flex';
     }
 
     function registerCompany() {
-        const email = document.getElementById('c-email').value;
-        const pass = document.getElementById('c-pass').value;
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        const cname = document.getElementById('reg-cname').value;
+        const hrname = document.getElementById('reg-hrname').value;
+        const phone = document.getElementById('reg-phone').value;
+        const city = document.getElementById('reg-city').value;
+        const about = document.getElementById('reg-about').value;
+
+        if(!cname || !hrname || !phone) { alert("Please fill mandatory details!"); return; }
+
         auth.createUserWithEmailAndPassword(email, pass).then(cred => {
-            db.collection('companies').doc(cred.user.uid).set({
-                email: email, planType: 'free', isApproved: true
-            }).then(() => checkCompanyAuth(cred.user.uid));
-        });
+            return db.collection('companies').doc(cred.user.uid).set({
+                email: email, companyName: cname, hrName: hrname, 
+                phone: phone, city: city, about: about, 
+                planType: 'free', paid: true
+            });
+        }).then(() => {
+            closeModals();
+            alert("Company Registered Successfully!");
+        }).catch(err => alert(err.message));
     }
 
+    // 4. AUTHENTICATION (Login / Logout)
     function loginCompany() {
-        const email = document.getElementById('c-email').value;
-        const pass = document.getElementById('c-pass').value;
-        auth.signInWithEmailAndPassword(email, pass).then(cred => checkCompanyAuth(cred.user.uid));
+        const email = document.getElementById('c-login-email').value;
+        const pass = document.getElementById('c-login-pass').value;
+        if(!email || !pass) return;
+        auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
     }
 
-    function checkCompanyAuth(uid) {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('sidebar').style.display = 'flex';
-        document.getElementById('dashboard').style.display = 'block';
-        currentCompany = uid;
-        
-        // Listen to billing plan changes set by admin
-        db.collection('companies').doc(uid).onSnapshot(doc => {
+    function logoutCompany() { auth.signOut(); }
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            currentCompany = user.uid;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'flex';
+            
+            monitorBillingAndProfile();
+            loadMyJobs();
+            loadApplicants();
+        } else {
+            currentCompany = null;
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+    });
+
+    // 5. BILLING & PROFILE LOAD
+    function monitorBillingAndProfile() {
+        db.collection('companies').doc(currentCompany).onSnapshot(doc => {
             if(doc.exists) {
                 const data = doc.data();
-                document.getElementById('plan-status').innerText = (data.planType || 'Free').toUpperCase();
+                
+                // Profile Set
+                document.getElementById('p-cname').value = data.companyName || '';
+                document.getElementById('p-hrname').value = data.hrName || '';
+                document.getElementById('p-phone').value = data.phone || '';
+
+                // Billing Logic
                 companyPlan.type = data.planType || 'free';
-                if(companyPlan.type !== 'free' && !data.paid) {
+                companyPlan.paid = data.paid !== false; // default true
+                
+                document.getElementById('plan-status').innerText = companyPlan.type.toUpperCase();
+                if(!companyPlan.paid) {
                     document.getElementById('billing-warning').style.display = 'block';
-                    document.getElementById('plan-desc').innerText = "Admin has set a charge for your account. Please complete payment offline to post jobs.";
+                    document.getElementById('plan-desc').innerText = "Your account has pending charges. Contact Admin to activate job visibility.";
                 } else {
                     document.getElementById('billing-warning').style.display = 'none';
-                    document.getElementById('plan-desc').innerText = "Your account is active. You can post jobs.";
+                    document.getElementById('plan-desc').innerText = "Your account is in good standing. You can post and manage jobs.";
                 }
             }
         });
-        loadMyJobs();
-        loadApplicants();
     }
 
-    function postJob() {
+    function updateCompanyProfile() {
+        db.collection('companies').doc(currentCompany).update({
+            companyName: document.getElementById('p-cname').value,
+            hrName: document.getElementById('p-hrname').value,
+            phone: document.getElementById('p-phone').value
+        }).then(() => alert("Profile Updated!"));
+    }
+
+    // 6. JOB MANAGEMENT (Create, Edit, Delete)
+    function openPostJobModal(jobId = null) {
+        document.getElementById('job-modal').style.display = 'flex';
+        if(jobId) {
+            document.getElementById('job-modal-title').innerText = "Edit Job";
+            db.collection('jobs').doc(jobId).get().then(doc => {
+                const j = doc.data();
+                document.getElementById('j-id').value = doc.id;
+                document.getElementById('j-title').value = j.title;
+                document.getElementById('j-salary').value = j.salary;
+                document.getElementById('j-vacancy').value = j.vacancy;
+                document.getElementById('j-desc').value = j.desc;
+            });
+        } else {
+            document.getElementById('job-modal-title').innerText = "Post New Job";
+            document.getElementById('j-id').value = '';
+            document.getElementById('j-title').value = '';
+            document.getElementById('j-salary').value = '';
+            document.getElementById('j-vacancy').value = '';
+            document.getElementById('j-desc').value = '';
+        }
+    }
+
+    function saveJob() {
+        const id = document.getElementById('j-id').value;
         const data = {
             companyId: currentCompany,
+            companyEmail: auth.currentUser.email,
             title: document.getElementById('j-title').value,
             salary: document.getElementById('j-salary').value,
             vacancy: document.getElementById('j-vacancy').value,
             desc: document.getElementById('j-desc').value,
-            status: 'Pending Review', // Goes to admin
-            postedAt: firebase.firestore.FieldValue.serverTimestamp()
+            status: 'Pending Review' // Admin will approve
         };
-        db.collection('jobs').add(data).then(() => {
-            alert("Job Submitted! Waiting for Admin Approval.");
-            nav('my-jobs');
-        });
+
+        if(!data.title || !data.salary) { alert("Fill all details!"); return; }
+
+        if(id) {
+            // Edit Job
+            db.collection('jobs').doc(id).update(data).then(() => {
+                closeModals(); alert("Job Updated! Sent for Admin Review.");
+            });
+        } else {
+            // New Job
+            data.postedAt = firebase.firestore.FieldValue.serverTimestamp();
+            db.collection('jobs').add(data).then(() => {
+                closeModals(); alert("Job Posted! Waiting for Admin Approval.");
+            });
+        }
+    }
+
+    function deleteJob(jobId) {
+        if(confirm("Are you sure you want to delete this job?")) {
+            db.collection('jobs').doc(jobId).delete();
+        }
     }
 
     function loadMyJobs() {
         db.collection('jobs').where('companyId', '==', currentCompany).onSnapshot(snap => {
             const list = document.getElementById('job-list');
             list.innerHTML = '';
+            if(snap.empty) list.innerHTML = '<p style="color:#777;">No jobs posted yet.</p>';
+
             snap.forEach(doc => {
                 const j = doc.data();
-                const statusClass = j.status === 'Approved' ? 'status-approved' : 'status-pending';
-                list.innerHTML += `<div class="card">
-                    <h3>${j.title}</h3>
-                    <p>Vacancies: ${j.vacancy} | Salary: ${j.salary}</p>
-                    <p class="${statusClass}">Status: ${j.status}</p>
-                </div>`;
+                const badge = j.status === 'Approved' ? 'badge-approved' : 'badge-pending';
+                list.innerHTML += `
+                    <div class="card">
+                        <span class="badge ${badge}">${j.status}</span>
+                        <h3 style="margin-bottom: 5px;">${j.title}</h3>
+                        <p style="font-size:13px; color:#666; margin-bottom:10px;">Vacancy: ${j.vacancy} | Salary: ${j.salary}</p>
+                        <div style="display:flex; gap:10px;">
+                            <button onclick="openPostJobModal('${doc.id}')" style="background:#f39c12; padding:8px;"><i class="fa-solid fa-pen"></i> Edit</button>
+                            <button onclick="deleteJob('${doc.id}')" class="btn-danger" style="padding:8px;"><i class="fa-solid fa-trash"></i> Delete</button>
+                        </div>
+                    </div>
+                `;
             });
         });
     }
 
+    // 7. APPLICANTS MANAGEMENT (Status Update)
     function loadApplicants() {
         db.collection('applications').where('companyId', '==', currentCompany).onSnapshot(snap => {
             const list = document.getElementById('applicant-list');
             list.innerHTML = '';
+            if(snap.empty) list.innerHTML = '<p style="color:#777;">No applications received yet.</p>';
+
             snap.forEach(doc => {
                 const a = doc.data();
-                list.innerHTML += `<div class="card">
-                    <h3>Applied for: ${a.jobTitle}</h3>
-                    <p>Candidate ID: ${a.candidateId}</p>
-                    <button onclick="viewCandidate('${a.candidateId}')">View Profile</button>
-                </div>`;
+                list.innerHTML += `
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between;">
+                            <h3 style="color:var(--c-primary);">${a.jobTitle}</h3>
+                            <span class="badge" style="background:#e0e0e0;">Status: <b>${a.status}</b></span>
+                        </div>
+                        <p style="font-size:12px; color:#777; margin: 10px 0;">Candidate ID: ${a.candidateId}</p>
+                        
+                        <div style="display:flex; gap:5px; margin-top:10px;">
+                            <button onclick="updateStatus('${doc.id}', 'Shortlisted')" style="background:#3498db; padding:6px; font-size:12px;">Shortlist</button>
+                            <button onclick="updateStatus('${doc.id}', 'Hired')" class="btn-success" style="padding:6px; font-size:12px;">Hire</button>
+                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="btn-danger" style="padding:6px; font-size:12px;">Reject</button>
+                        </div>
+                    </div>
+                `;
             });
         });
     }
 
-    function viewCandidate(candId) {
-        db.collection('candidates').doc(candId).get().then(doc => {
-            if(doc.exists) {
-                const c = doc.data();
-                alert(`Name: ${c.name}\nExp: ${c.experience}\nBio: ${c.bio}\nResume: ${c.resumeLink}`);
-            }
-        });
+    function updateStatus(appId, newStatus) {
+        db.collection('applications').doc(appId).update({ status: newStatus });
     }
 </script>
 </body>
