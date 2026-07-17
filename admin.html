@@ -109,16 +109,25 @@
     }
 
     function loginAdmin() {
-        const email = document.getElementById('a-email').value;
-        const pass = document.getElementById('a-pass').value;
-        // In real app, verify if this user's UID exists in a separate 'admins' collection
-        auth.signInWithEmailAndPassword(email, pass).then(cred => {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('sidebar').style.display = 'flex';
-            document.getElementById('dashboard').style.display = 'block';
-            loadAdminData();
-        }).catch(err => alert("Access Denied: " + err.message));
+    const email = document.getElementById('a-email').value;
+    const pass = document.getElementById('a-pass').value;
+
+    // Yahan apna wo email likhein jo aapne Firebase console mein banaya hai
+    const myAdminEmail = "admin1@gmail.com"; 
+
+    if (email !== myAdminEmail) {
+        alert("Access Denied: Aap Admin nahi hain!");
+        return;
     }
+
+    auth.signInWithEmailAndPassword(email, pass).then(cred => {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('sidebar').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'block';
+        loadAdminData();
+    }).catch(err => alert("Access Denied: " + err.message));
+            }
+    
 
     function loadAdminData() {
         // 1. Pending Jobs
