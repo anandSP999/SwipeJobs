@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwipeJobs - Super Admin</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --admin: #e74c3c; --bg: #f9f9f9; --sidebar: #1e272e; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; }
+        .sidebar h2 { padding: 20px; background: var(--admin); text-align: center; }
+        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); border-left: 4px solid var(--admin); }
+        
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: var(--admin); color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn-success { background: #27ae60; }
+        .btn-danger { background: #c0392b; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; }
+            .sidebar h2 { width: 100%; }
+            .nav-item { flex: 1; text-align: center; padding: 10px; font-size: 14px; }
+            .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Admin Login Screen -->
+    <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
+        <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
+            <h2 style="color: var(--admin); margin-bottom: 15px;">Admin Gateway</h2>
+            <input type="email" id="a-email" placeholder="Admin Email">
+            <input type="password" id="a-pass" placeholder="Secret Password">
+            <button onclick="loginAdmin()">Access System</button>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Sidebar -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <h2>Admin Panel</h2>
+        <div class="nav-item active" onclick="nav('job-approvals')">Job Approvals</div>
+        <div class="nav-item" onclick="nav('manage-companies')">Manage Companies</div>
+        <div class="nav-item" onclick="nav('all-candidates')">All Candidates</div>
+        <div class="nav-item" onclick="nav('all-applications')">Application Logs</div>
+    </div>
+
+    <!-- Admin Dashboard Content -->
+    <div class="main-content" id="dashboard" style="display: none;">
+        
+        <!-- 1. Job Approvals -->
+        <div id="job-approvals" class="screen active">
+            <h2>Pending Job Reviews</h2><br>
+            <div id="pending-jobs" class="grid-3"></div>
+        </div>
+
+        <!-- 2. Manage Companies & Billing -->
+        <div id="manage-companies" class="screen">
+            <h2>Registered Companies & Billing</h2><br>
+            <div id="companies-list"></div>
+        </div>
+
+        <!-- 3. Candidates -->
+        <div id="all-candidates" class="screen">
+            <h2>Candidate Database</h2><br>
+            <div id="candidates-list" class="grid-3"></div>
+        </div>
+
+        <!-- 4. Application Logs -->
+        <div id="all-applications" class="screen">
+            <h2>Platform Application Logs</h2><br>
+            <div id="applications-list"></div>
+        </div>
+    </div>
+
+<script>
+    // Initialize Firebase (Same Config)
+    const firebaseConfig = {
+  apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
+  authDomain: "swipejobs-a5317.firebaseapp.com",
+  projectId: "swipejobs-a5317",
+  storageBucket: "swipejobs-a5317.firebasestorage.app",
+  messagingSenderId: "916910145870",
+  appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+                                                        };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const auth = firebase.auth(); const db = firebase.firestore();
+
+    function nav(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function loginAdmin() {
+        const email = document.getElementById('a-email').value;
+        const pass = document.getElementById('a-pass').value;
+        // In real app, verify if this user's UID exists in a separate 'admins' collection
+        auth.signInWithEmailAndPassword(email, pass).then(cred => {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'block';
+            loadAdminData();
+        }).catch(err => alert("Access Denied: " + err.message));
+    }
+
+    function loadAdminData() {
+        // 1. Pending Jobs
+        db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
+            const list = document.getElementById('pending-jobs');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const j = doc.data();
+                list.innerHTML += `<div class="card">
+                    <h3>${j.title}</h3>
+                    <p>Company ID: ${j.companyId}</p>
+                    <p>Desc: ${j.desc}</p>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-success" onclick="updateJob('${doc.id}', 'Approved')">Approve</button>
+                        <button class="btn-danger" onclick="updateJob('${doc.id}', 'Rejected')">Reject</button>
+                    </div>
+                </div>`;
+            });
+        });
+
+        // 2. Companies & Billing
+        db.collection('companies').onSnapshot(snap => {
+            const list = document.getElementById('companies-list');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const c = doc.data();
+                list.innerHTML += `<div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h3>${c.email}</h3>
+                        <p>Current Plan: <b>${c.planType || 'free'}</b></p>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <select id="plan-${doc.id}">
+                            <option value="free">Free Forever</option>
+                            <option value="per_post">Pay Per Post</option>
+                            <option value="subscription">Monthly Sub</option>
+                        </select>
+                        <button onclick="updateBilling('${doc.id}')">Update Billing</button>
+                    </div>
+                </div>`;
+            });
+        });
+
+        // 3. Candidates
+        db.collection('candidates').onSnapshot(snap => {
+            const list = document.getElementById('candidates-list');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const c = doc.data();
+                list.innerHTML += `<div class="card">
+                    <h3>${c.name}</h3>
+                    <p>Exp: ${c.experience}</p>
+                    <a href="${c.resumeLink}" target="_blank">View Resume</a>
+                </div>`;
+            });
+        });
+
+        // 4. Applications (Who applied where)
+        db.collection('applications').onSnapshot(snap => {
+            const list = document.getElementById('applications-list');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const a = doc.data();
+                list.innerHTML += `<div class="card">
+                    <b>Candidate ID:</b> ${a.candidateId} <br>
+                    <b>Applied To (Company ID):</b> ${a.companyId} <br>
+                    <b>Job Title:</b> ${a.jobTitle}
+                </div>`;
+            });
+        });
+    }
+
+    // Action Functions
+    function updateJob(jobId, status) {
+        db.collection('jobs').doc(jobId).update({ status: status });
+    }
+
+    function updateBilling(companyId) {
+        const plan = document.getElementById(`plan-${companyId}`).value;
+        db.collection('companies').doc(companyId).update({ planType: plan, paid: plan === 'free' });
+        alert("Company Billing Updated!");
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwipeJobs - Company Portal</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --primary: #007bff; --bg: #f4f7f6; --sidebar: #2c3e50; --text: #333; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Layout: PC Sidebar vs Mobile Bottom Nav */
+        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; transition: 0.3s; }
+        .sidebar h2 { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-item:hover, .nav-item.active { background: var(--primary); }
+        
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        /* Forms & Cards */
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, textarea, select, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        
+        .status-pending { color: #f39c12; font-weight: bold; }
+        .status-approved { color: #27ae60; font-weight: bold; }
+        .billing-banner { background: #ffeaa7; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: none; color: #d35400; font-weight: bold; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; flex-direction: row; position: fixed; bottom: 0; z-index: 100; }
+            .sidebar h2 { display: none; }
+            .nav-item { flex: 1; text-align: center; padding: 10px; font-size: 12px; border-bottom: none; border-right: 1px solid rgba(255,255,255,0.1); }
+            .main-content { margin-bottom: 50px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
+        <div class="card" style="width: 100%; max-width: 400px;">
+            <h2 style="text-align: center; color: var(--primary);">Company Login</h2>
+            <input type="email" id="c-email" placeholder="Company Email">
+            <input type="password" id="c-pass" placeholder="Password">
+            <button onclick="loginCompany()">Login</button>
+            <button onclick="registerCompany()" style="background: #333;">Register Company</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Sidebar -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <h2>Company Portal</h2>
+        <div class="nav-item active" onclick="nav('post-job')">Post Job</div>
+        <div class="nav-item" onclick="nav('my-jobs')">My Jobs & Status</div>
+        <div class="nav-item" onclick="nav('applicants')">Applicants</div>
+        <div class="nav-item" onclick="nav('billing')">Billing & Plan</div>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="main-content" id="dashboard" style="display: none;">
+        
+        <div id="post-job" class="screen active">
+            <h2>Post a New Vacancy</h2>
+            <div id="billing-warning" class="billing-banner">Your current plan requires payment. Please check Billing tab.</div>
+            <div class="card">
+                <input type="text" id="j-title" placeholder="Job Title (e.g. Graphic Designer)">
+                <input type="text" id="j-salary" placeholder="Salary Package">
+                <input type="text" id="j-vacancy" placeholder="No. of Vacancies">
+                <textarea id="j-desc" placeholder="Job Description & Requirements" rows="4"></textarea>
+                <button onclick="postJob()">Submit for Admin Review</button>
+            </div>
+        </div>
+
+        <div id="my-jobs" class="screen">
+            <h2>My Posted Jobs</h2>
+            <div id="job-list"></div>
+        </div>
+
+        <div id="applicants" class="screen">
+            <h2>Candidate Applications</h2>
+            <div id="applicant-list"></div>
+        </div>
+
+        <div id="billing" class="screen">
+            <h2>Subscription & Billing</h2>
+            <div class="card">
+                <h3>Current Status: <span id="plan-status">Loading...</span></h3>
+                <p style="margin-top: 10px;" id="plan-desc"></p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Initialize Firebase 
+    const firebaseConfig = {
+  apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
+  authDomain: "swipejobs-a5317.firebaseapp.com",
+  projectId: "swipejobs-a5317",
+  storageBucket: "swipejobs-a5317.firebasestorage.app",
+  messagingSenderId: "916910145870",
+  appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+                                               };
+                                           
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const auth = firebase.auth(); const db = firebase.firestore();
+    let currentCompany = null;
+    let companyPlan = { type: 'free', canPost: true };
+
+    function nav(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function registerCompany() {
+        const email = document.getElementById('c-email').value;
+        const pass = document.getElementById('c-pass').value;
+        auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+            db.collection('companies').doc(cred.user.uid).set({
+                email: email, planType: 'free', isApproved: true
+            }).then(() => checkCompanyAuth(cred.user.uid));
+        });
+    }
+
+    function loginCompany() {
+        const email = document.getElementById('c-email').value;
+        const pass = document.getElementById('c-pass').value;
+        auth.signInWithEmailAndPassword(email, pass).then(cred => checkCompanyAuth(cred.user.uid));
+    }
+
+    function checkCompanyAuth(uid) {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('sidebar').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'block';
+        currentCompany = uid;
+        
+        // Listen to billing plan changes set by admin
+        db.collection('companies').doc(uid).onSnapshot(doc => {
+            if(doc.exists) {
+                const data = doc.data();
+                document.getElementById('plan-status').innerText = (data.planType || 'Free').toUpperCase();
+                companyPlan.type = data.planType || 'free';
+                if(companyPlan.type !== 'free' && !data.paid) {
+                    document.getElementById('billing-warning').style.display = 'block';
+                    document.getElementById('plan-desc').innerText = "Admin has set a charge for your account. Please complete payment offline to post jobs.";
+                } else {
+                    document.getElementById('billing-warning').style.display = 'none';
+                    document.getElementById('plan-desc').innerText = "Your account is active. You can post jobs.";
+                }
+            }
+        });
+        loadMyJobs();
+        loadApplicants();
+    }
+
+    function postJob() {
+        const data = {
+            companyId: currentCompany,
+            title: document.getElementById('j-title').value,
+            salary: document.getElementById('j-salary').value,
+            vacancy: document.getElementById('j-vacancy').value,
+            desc: document.getElementById('j-desc').value,
+            status: 'Pending Review', // Goes to admin
+            postedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        db.collection('jobs').add(data).then(() => {
+            alert("Job Submitted! Waiting for Admin Approval.");
+            nav('my-jobs');
+        });
+    }
+
+    function loadMyJobs() {
+        db.collection('jobs').where('companyId', '==', currentCompany).onSnapshot(snap => {
+            const list = document.getElementById('job-list');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const j = doc.data();
+                const statusClass = j.status === 'Approved' ? 'status-approved' : 'status-pending';
+                list.innerHTML += `<div class="card">
+                    <h3>${j.title}</h3>
+                    <p>Vacancies: ${j.vacancy} | Salary: ${j.salary}</p>
+                    <p class="${statusClass}">Status: ${j.status}</p>
+                </div>`;
+            });
+        });
+    }
+
+    function loadApplicants() {
+        db.collection('applications').where('companyId', '==', currentCompany).onSnapshot(snap => {
+            const list = document.getElementById('applicant-list');
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const a = doc.data();
+                list.innerHTML += `<div class="card">
+                    <h3>Applied for: ${a.jobTitle}</h3>
+                    <p>Candidate ID: ${a.candidateId}</p>
+                    <button onclick="viewCandidate('${a.candidateId}')">View Profile</button>
+                </div>`;
+            });
+        });
+    }
+
+    function viewCandidate(candId) {
+        db.collection('candidates').doc(candId).get().then(doc => {
+            if(doc.exists) {
+                const c = doc.data();
+                alert(`Name: ${c.name}\nExp: ${c.experience}\nBio: ${c.bio}\nResume: ${c.resumeLink}`);
+            }
+        });
+    }
+</script>
+</body>
+</html>
