@@ -3,94 +3,470 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SwipeJobs - Company Portal</title>
+    <title>SwipeJobs - Advanced Company & Admin Portal</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase Legacy Compat Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
     <style>
-        :root { --primary: #007bff; --bg: #f4f7f6; --sidebar: #2c3e50; --text: #333; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
-        
-        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; transition: 0.3s; }
-        .sidebar h2 { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .nav-item:hover, .nav-item.active { background: var(--primary); }
-        
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --bg-main: #f8f9fa;
+            --sidebar-bg: #1E1B4B;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: var(--bg-main);
+            color: var(--text-dark);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Global Spinner Loader --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: var(--transition);
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #E5E7EB;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Layout: Sidebar --- */
+        .sidebar {
+            background: var(--sidebar-bg);
+            color: white;
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            z-index: 10;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar-brand {
+            padding: 24px 20px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-brand i { color: var(--success); }
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            padding: 15px 0;
+            flex: 1;
+        }
+        .nav-item {
+            padding: 14px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #9EC5FE;
+            transition: var(--transition);
+            border-left: 4px solid transparent;
+        }
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+        .nav-item.active {
+            background: rgba(79, 70, 229, 0.15);
+            color: white;
+            border-left-color: var(--primary);
+        }
+
+        /* --- Layout: Main Wrapper --- */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-navbar {
+            background: white;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        /* --- UI Components --- */
         .screen { display: none; }
         .screen.active { display: block; }
         
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, textarea, select, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stat-info h3 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .stat-info p { font-size: 13px; color: var(--text-light); font-weight: 500; }
+        .stat-icon {
+            width: 48px; height: 48px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+            border: 1px solid #F3F4F6;
+        }
+        h2 { font-size: 22px; font-weight: 600; color: var(--text-dark); margin-bottom: 20px; }
         
-        .status-pending { color: #f39c12; font-weight: bold; }
-        .status-approved { color: #27ae60; font-weight: bold; }
-        .billing-banner { background: #ffeaa7; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: none; color: #d35400; font-weight: bold; }
+        /* --- Forms & Interactive UI Elements --- */
+        .form-group { margin-bottom: 16px; }
+        label { font-size: 13px; font-weight: 500; color: var(--text-dark); display: block; margin-bottom: 6px; }
+        input, textarea, select {
+            width: 100%; padding: 12px; border-radius: 8px;
+            border: 1px solid #D1D5DB; font-size: 14px; transition: var(--transition);
+            background: #F9FAFB;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        button, .btn {
+            padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: var(--transition); border: none; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px; min-height: 48px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-outline { background: transparent; border: 1px solid #D1D5DB; color: var(--text-dark); }
+        .btn-outline:hover { background: #F3F4F6; }
+        
+        /* --- Badges --- */
+        .badge {
+            padding: 6px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; display: inline-block;
+        }
+        .badge-pending { background: #FEF3C7; color: #D97706; }
+        .badge-approved { background: #D1FAE5; color: #059669; }
+        .badge-rejected { background: #FEE2E2; color: #DC2626; }
+
+        .billing-banner {
+            background: #EFF6FF; border-left: 4px solid var(--primary);
+            padding: 16px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 12px; color: #1E40AF; font-size: 14px;
+        }
+
+        /* --- Table View Structure --- */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 14px; border-bottom: 1px solid #E5E7EB; font-size: 14px; }
+        th { background: #F9FAFB; font-weight: 600; color: var(--text-light); }
+
+        /* --- Modals Engine System --- */
+        .modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(15, 23, 42, 0.6); z-index: 1000;
+            display: none; justify-content: center; align-items: center; padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-card {
+            background: white; width: 100%; max-width: 600px;
+            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden; animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalSlide {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            padding: 20px 24px; border-bottom: 1px solid #E5E7EB;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 10px; }
+        
+        /* --- Responsive Viewports Framework --- */
+        @media (max-width: 1024px) {
+            .sidebar { width: 80px; }
+            .sidebar-brand span, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 16px; }
+        }
 
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; flex-direction: row; position: fixed; bottom: 0; z-index: 100; }
-            .sidebar h2 { display: none; }
-            .nav-item { flex: 1; text-align: center; padding: 10px; font-size: 12px; border-bottom: none; border-right: 1px solid rgba(255,255,255,0.1); }
-            .main-content { margin-bottom: 50px; }
+            .sidebar {
+                width: 100%; height: 60px; flex-direction: row; position: fixed; bottom: 0; left: 0;
+                box-shadow: 0 -4px 10px rgba(0,0,0,0.05); border-top: 1px solid rgba(255,255,255,0.1);
+            }
+            .sidebar-brand { display: none; }
+            .nav-menu { flex-direction: row; padding: 0; width: 100%; justify-content: space-around; }
+            .nav-item {
+                flex: 1; flex-direction: column; justify-content: center; gap: 4px;
+                padding: 8px 0; font-size: 10px; border-left: none; border-top: 3px solid transparent;
+            }
+            .nav-item span { display: block; font-size: 10px; }
+            .nav-item.active { border-left-color: transparent; border-top-color: var(--primary); background: transparent; }
+            .top-navbar { height: 60px; padding: 0 20px; }
+            .main-container { height: calc(100vh - 60px); }
+            .main-content { padding: 16px; padding-bottom: 40px; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .btn { width: 100%; }
         }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
-        <div class="card" style="width: 100%; max-width: 400px;">
-            <h2 style="text-align: center; color: var(--primary);">Company Login</h2>
-            <input type="email" id="c-email" placeholder="Company Email">
-            <input type="password" id="c-pass" placeholder="Password">
-            <button onclick="loginCompany()">Login</button>
-            <button onclick="registerCompany()" style="background: #333;">Register Company</button>
+    <!-- CSS Global Loading Spinner -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- UI Sidebar Shell Structure -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-bolt"></i> <span>SwipeJobs</span>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item active" id="nav-dash" onclick="nav('dashboard-panel')"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></div>
+            <div class="nav-item" id="nav-post" onclick="nav('post-job')"><i class="fa-solid fa-circle-plus"></i><span>Post Job</span></div>
+            <div class="nav-item" id="nav-myjobs" onclick="nav('my-jobs')"><i class="fa-solid fa-briefcase"></i><span>My Jobs</span></div>
+            <div class="nav-item" id="nav-apps" onclick="nav('applicants')"><i class="fa-solid fa-users"></i><span>Applicants</span></div>
+            <div class="nav-item" id="nav-bill" onclick="nav('billing')"><i class="fa-solid fa-credit-card"></i><span>Billing System</span></div>
+            <div class="nav-item" id="nav-admin" onclick="nav('admin-panel')" style="display: none; background: #991B1B;"><i class="fa-solid fa-user-shield"></i><span>Admin View</span></div>
         </div>
     </div>
 
-    <div class="sidebar" id="sidebar" style="display: none;">
-        <h2>Company Portal</h2>
-        <div class="nav-item active" onclick="nav('post-job')">Post Job</div>
-        <div class="nav-item" onclick="nav('my-jobs')">My Jobs & Status</div>
-        <div class="nav-item" onclick="nav('applicants')">Applicants</div>
-        <div class="nav-item" onclick="nav('billing')">Billing & Plan</div>
+    <!-- Main Container Frame -->
+    <div class="main-container">
+        <!-- Application Content Shell -->
+        <div class="main-content" id="app-window" style="display: none;">
+            
+            <!-- 1. DASHBOARD ANALYTICS SCREEN -->
+            <div id="dashboard-panel" class="screen active">
+                <h2>Portal Overview</h2>
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-info"><h3 id="stat-total-jobs">0</h3><p>Total Job Posts</p></div>
+                        <div class="stat-icon" style="background:#EEF2FF; color:var(--primary);"><i class="fa-solid fa-briefcase"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info"><h3 id="stat-total-apps">0</h3><p>Total Candidates</p></div>
+                        <div class="stat-icon" style="background:#E0F2FE; color:#0284C7;"><i class="fa-solid fa-users"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info"><h3 id="stat-active-plan">-</h3><p>Current Core Plan</p></div>
+                        <div class="stat-icon" style="background:#ECFDF5; color:var(--success);"><i class="fa-solid fa-award"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. POST JOB FORM SCREEN -->
+            <div id="post-job" class="screen">
+                <h2>Launch Position Listing</h2>
+                <div id="billing-warning" class="billing-banner" style="display:none;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span>System Notice: Access restrictions apply based on your administrative credit allocation status.</span>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label>Job Title / Specification</label>
+                        <input type="text" id="j-title" placeholder="e.g. Senior Video Editor & Motion Designer">
+                    </div>
+                    <div class="form-group">
+                        <label>Compensation Metric</label>
+                        <input type="text" id="j-salary" placeholder="e.g. ₹8,000 - ₹12,000 / Month">
+                    </div>
+                    <div class="form-group">
+                        <label>Allocated Headcount Vacancies</label>
+                        <input type="number" id="j-vacancy" placeholder="e.g. 3">
+                    </div>
+                    <div class="form-group">
+                        <label>Execution Requirements & Guidelines</label>
+                        <textarea id="j-desc" rows="5" placeholder="Outline specific criteria..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="postJob()">Submit To Review Pipe</button>
+                </div>
+            </div>
+
+            <!-- 3. MY JOBS LOGISTICS SCREEN -->
+            <div id="my-jobs" class="screen">
+                <h2>Corporate Job Postings</h2>
+                <div id="job-list"></div>
+            </div>
+
+            <!-- 4. APPLICANTS INTERACTIVE SCREEN -->
+            <div id="applicants" class="screen">
+                <h2>Incoming Professional Pipelines</h2>
+                <div id="applicant-list"></div>
+            </div>
+
+            <!-- 5. SUBSCRIPTION BILLING MATRIX SYSTEM -->
+            <div id="billing" class="screen">
+                <h2>Account Plan Status</h2>
+                <div class="card">
+                    <h3>Plan Framework: <span id="plan-status" style="color:var(--primary);">FREE FRAMEWORK</span></h3>
+                    <p style="margin-top:12px; color:var(--text-light);" id="plan-desc">Loading parameters...</p>
+                    <button class="btn btn-outline" style="margin-top: 20px;" onclick="openPaymentModal()">Trigger Subscription Upgrade Process</button>
+                </div>
+            </div>
+
+            <!-- 6. ADMIN CENTRAL CONTROL INTERFACE -->
+            <div id="admin-panel" class="screen">
+                <h2>Admin Console</h2>
+                <div class="card">
+                    <h3>Registered Accounts Control</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr><th>Account UID</th><th>Plan Framework</th><th>Credit Weight</th><th>Logistical Bounds</th></tr>
+                            </thead>
+                            <tbody id="admin-companies-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card" style="margin-top:25px;">
+                    <h3>System Approvals Pipeline</h3>
+                    <div id="admin-pending-jobs"></div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
-    <div class="main-content" id="dashboard" style="display: none;">
-        <div id="post-job" class="screen active">
-            <h2>Post a New Vacancy</h2>
-            <div id="billing-warning" class="billing-banner">Your current plan requires payment. Please check Billing tab.</div>
-            <div class="card">
-                <input type="text" id="j-title" placeholder="Job Title (e.g. Graphic Designer)">
-                <input type="text" id="j-salary" placeholder="Salary Package">
-                <input type="text" id="j-vacancy" placeholder="No. of Vacancies">
-                <textarea id="j-desc" placeholder="Job Description & Requirements" rows="4"></textarea>
-                <button onclick="postJob()">Submit for Admin Review</button>
+    <!-- AUTHENTICATION DIALOG MATRIX LAYER -->
+    <div id="auth-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-main); display:flex; justify-content:center; align-items:center; z-index:5000;">
+        <div class="card" style="width:100%; max-width:420px; padding:35px;">
+            <h2 style="text-align:center; margin-bottom:10px; font-weight:700; color:var(--primary);">SwipeJobs</h2>
+            <p style="text-align:center; font-size:13px; color:var(--text-light); margin-bottom:25px;">Corporate Core Portal Pipeline Access</p>
+            <div class="form-group">
+                <label>Corporate Account Email</label>
+                <input type="email" id="c-email" placeholder="name@domain.com">
+            </div>
+            <div class="form-group">
+                <label>Security Keyphrase Passphrase</label>
+                <input type="password" id="c-pass" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="loginCompany()">Authenticate Identity</button>
+            <button class="btn btn-outline" style="width:100%; margin-top:12px;" onclick="registerCompany()">Provision New Ecosystem Document</button>
+        </div>
+    </div>
+
+    <!-- MODAL: CANDIDATE RICH EXTENDED DATASHEET VIEW -->
+    <div class="modal-overlay" id="candidate-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-weight:600;" id="m-candidate-name">Professional Profile</h3>
+                <button onclick="closeModal('candidate-modal')" style="background:transparent; font-size:20px; border:none; color:var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+                    <div style="width:64px; height:64px; border-radius:50%; background:#E2E8F0; display:flex; align-items:center; justify-content:center; font-size:24px; color:#94A3B8;"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <h4 id="m-display-name" style="font-size:18px; font-weight:600;">-</h4>
+                        <p id="m-display-role" style="font-size:13px; color:var(--text-light); font-weight:500;">-</p>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
+                    <div><label>Communications Line</label><p id="m-mobile" style="font-size:14px; font-weight:500;">-</p></div>
+                    <div><label>Routing Address</label><p id="m-email" style="font-size:14px; font-weight:500;">-</p></div>
+                    <div><label>Practical Execution Track</label><p id="m-exp" style="font-size:14px; font-weight:500;">- Years</p></div>
+                    <div><label>Ecosystem Applied Timestamp</label><p id="m-date" style="font-size:14px; font-weight:500;">-</p></div>
+                </div>
+                <div class="form-group">
+                    <label>Skill Stack Allocation Matrix</label>
+                    <p id="m-skills" style="font-size:14px; background:#F3F4F6; padding:10px; border-radius:8px; font-weight:500;">-</p>
+                </div>
+                <div class="form-group">
+                    <label>Professional Profile Biography Summary</label>
+                    <p id="m-bio" style="font-size:14px; color:#4B5563; line-height:1.6;">-</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a id="m-resume-link" target="_blank" class="btn btn-success" style="text-decoration:none; color:white;"><i class="fa-solid fa-file-arrow-download"></i> Extract Resume Ledger</a>
+                <button class="btn btn-outline" onclick="closeModal('candidate-modal')">Dismiss Overlay</button>
             </div>
         </div>
+    </div>
 
-        <div id="my-jobs" class="screen">
-            <h2>My Posted Jobs</h2>
-            <div id="job-list"></div>
-        </div>
-
-        <div id="applicants" class="screen">
-            <h2>Candidate Applications</h2>
-            <div id="applicant-list"></div>
-        </div>
-
-        <div id="billing" class="screen">
-            <h2>Subscription & Billing</h2>
-            <div class="card">
-                <h3>Current Status: <span id="plan-status">Loading...</span></h3>
-                <p style="margin-top: 10px;" id="plan-desc"></p>
+    <!-- MODAL: PAYMENTS GATEWAY SANDBOX -->
+    <div class="modal-overlay" id="payment-modal">
+        <div class="modal-card" style="max-width:400px;">
+            <div class="modal-header"><h3>Ecosystem Gateway Checkout</h3></div>
+            <div class="modal-body">
+                <p style="font-size:14px; margin-bottom:15px;">Secure transaction configuration interface simulation. Confirm execution upgrade path:</p>
+                <select id="checkout-plan-select">
+                    <option value="per_post">Pay-Per-Post Ledger (₹500 / Post Allocation)</option>
+                    <option value="monthly">Premium Extended Structural License (₹2,000 / Month)</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="processMockPayment()">Authorize Core Upgrade</button>
+                <button class="btn btn-outline" onclick="closeModal('payment-modal')">Cancel Transaction</button>
             </div>
         </div>
     </div>
 
 <script>
+    // System Configurations Framework[span_0](start_span)[span_0](end_span)
     const firebaseConfig = {
       apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
       authDomain: "swipejobs-a5317.firebaseapp.com",
@@ -102,118 +478,356 @@
                                            
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const auth = firebase.auth(); const db = firebase.firestore();
+    
     let currentCompany = null;
-    let companyPlan = { type: 'free', canPost: true };
+    let cachedCompanyProfile = null;
+
+    // Monitor Auth State Core Hook
+    auth.onAuthStateChanged(user => {
+        if(user) {
+            checkCompanyAuth(user.uid);
+        } else {
+            hideLoader();
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('app-window').style.display = 'none';
+        }
+    });
+
+    function showLoader() { document.getElementById('loading-overlay').style.opacity = '1'; document.getElementById('loading-overlay').style.display = 'flex'; }
+    function hideLoader() { document.getElementById('loading-overlay').style.opacity = '0'; setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 300); }
 
     function nav(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
-        event.target.classList.add('active');
+        
+        const matchingNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.getAttribute('onclick').includes(screenId));
+        if(matchingNav) matchingNav.classList.add('active');
     }
 
     function registerCompany() {
         const email = document.getElementById('c-email').value;
         const pass = document.getElementById('c-pass').value;
+        if(!email || !pass) return alert("All profile allocation inputs required.");
+        showLoader();
         auth.createUserWithEmailAndPassword(email, pass).then(cred => {
             db.collection('companies').doc(cred.user.uid).set({
-                email: email, planType: 'free', isApproved: true
+                uid: cred.user.uid,
+                email: email,
+                role: "company",
+                planType: "free",
+                jobCredits: 0,
+                subscriptionExpiry: null,
+                isPaid: false,
+                pricePerPost: 500,
+                monthlyPrice: 2000
             }).then(() => checkCompanyAuth(cred.user.uid));
-        }).catch(err => alert(err.message));
+        }).catch(err => { hideLoader(); alert(err.message); });
     }
 
     function loginCompany() {
         const email = document.getElementById('c-email').value;
         const pass = document.getElementById('c-pass').value;
-        auth.signInWithEmailAndPassword(email, pass).then(cred => checkCompanyAuth(cred.user.uid)).catch(err => alert(err.message));
+        if(!email || !pass) return alert("Credentials mapping criteria matching empty.");
+        showLoader();
+        auth.signInWithEmailAndPassword(email, pass).then(cred => checkCompanyAuth(cred.user.uid)).catch(err => { hideLoader(); alert(err.message); });
     }
 
     function checkCompanyAuth(uid) {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('sidebar').style.display = 'flex';
-        document.getElementById('dashboard').style.display = 'block';
         currentCompany = uid;
-        
         db.collection('companies').doc(uid).onSnapshot(doc => {
             if(doc.exists) {
-                const data = doc.data();
-                document.getElementById('plan-status').innerText = (data.planType || 'Free').toUpperCase();
-                companyPlan.type = data.planType || 'free';
-                if(companyPlan.type !== 'free' && !data.paid) {
-                    document.getElementById('billing-warning').style.display = 'block';
-                    document.getElementById('plan-desc').innerText = "Admin has set a charge for your account. Please complete payment offline to post jobs.";
+                cachedCompanyProfile = doc.data();
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('sidebar').style.display = 'flex';
+                document.getElementById('app-window').style.display = 'block';
+                
+                document.getElementById('stat-active-plan').innerText = cachedCompanyProfile.planType.toUpperCase();
+                document.getElementById('plan-status').innerText = cachedCompanyProfile.planType.toUpperCase();
+                
+                // Display Control Rule Checks
+                if(cachedCompanyProfile.role === 'admin') {
+                    document.getElementById('nav-admin').style.display = 'flex';
+                    initAdminPanelPipelines();
                 } else {
-                    document.getElementById('billing-warning').style.display = 'none';
-                    document.getElementById('plan-desc').innerText = "Your account is active. You can post jobs.";
+                    document.getElementById('nav-admin').style.display = 'none';
                 }
+
+                // Balance Plan Validation
+                evaluateStructuralPermissions();
+                loadMyJobs();
+                loadApplicants();
+                updateDashboardStatsCounters();
             }
-        });
-        loadMyJobs();
-        loadApplicants();
+            hideLoader();
+        }, err => hideLoader());
+    }
+
+    function evaluateStructuralPermissions() {
+        const p = cachedCompanyProfile;
+        const warningBanner = document.getElementById('billing-warning');
+        let statusString = "";
+
+        if(p.planType === 'free') {
+            warningBanner.style.display = 'none';
+            statusString = "Ecosystem configured inside Standard Global Open-Tier Configuration parameters.";
+        } else if(p.planType === 'per_post') {
+            statusString = `Pay-Per-Post Configuration: ${p.jobCredits || 0} Available Deployment Units Remain.`;
+            warningBanner.style.display = p.jobCredits > 0 ? 'none' : 'flex';
+        } else if(p.planType === 'monthly') {
+            const hasTime = p.subscriptionExpiry ? (p.subscriptionExpiry.toDate() > new Date()) : false;
+            statusString = hasTime ? `Premium Extended Frame Active until: ${p.subscriptionExpiry.toDate().toLocaleDateString()}` : "Ecosystem License Expired. Execution Restructured.";
+            warningBanner.style.display = hasTime ? 'none' : 'flex';
+        }
+        document.getElementById('plan-desc').innerText = statusString;
+    }
+
+    function canPostJob() {
+        const p = cachedCompanyProfile;
+        if(p.role === 'admin') return true;
+        if(p.planType === 'free') return true;
+        if(p.planType === 'monthly' && p.subscriptionExpiry && p.subscriptionExpiry.toDate() > new Date()) return true;
+        if(p.planType === 'per_post' && p.jobCredits > 0) return true;
+        return false;
     }
 
     function postJob() {
-        const userEmail = auth.currentUser ? auth.currentUser.email : 'Unknown Company';
-        const data = {
+        if(!canPostJob()) {
+            alert("Validation Interrupted: Insufficient deployment privileges. Execute billing balance alignment sequence.");
+            nav('billing');
+            return;
+        }
+
+        const title = document.getElementById('j-title').value;
+        const salary = document.getElementById('j-salary').value;
+        const vacancy = document.getElementById('j-vacancy').value;
+        const desc = document.getElementById('j-desc').value;
+
+        if(!title || !salary || !vacancy || !desc) return alert("System requires complete parameter population.");
+
+        showLoader();
+        const payload = {
             companyId: currentCompany,
-            companyEmail: userEmail,
-            title: document.getElementById('j-title').value,
-            salary: document.getElementById('j-salary').value,
-            vacancy: document.getElementById('j-vacancy').value,
-            desc: document.getElementById('j-desc').value,
+            companyEmail: cachedCompanyProfile.email,
+            title: title,
+            salary: salary,
+            vacancy: parseInt(vacancy),
+            desc: desc,
             status: 'Pending Review',
             postedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        db.collection('jobs').add(data).then(() => {
-            alert("Job Submitted! Waiting for Admin Approval.");
+
+        db.collection('jobs').add(payload).then(() => {
+            // Subtract dynamic values safely if user is on post metrics bounds
+            if(cachedCompanyProfile.planType === 'per_post' && cachedCompanyProfile.role !== 'admin') {
+                db.collection('companies').doc(currentCompany).update({
+                    jobCredits: firebase.firestore.FieldValue.increment(-1)
+                });
+            }
+            hideLoader();
+            alert("Job document entered into authorization queue.");
             nav('my-jobs');
             document.getElementById('j-title').value = '';
             document.getElementById('j-salary').value = '';
             document.getElementById('j-vacancy').value = '';
             document.getElementById('j-desc').value = '';
-        });
+        }).catch(e => { hideLoader(); alert(e.message); });
     }
 
     function loadMyJobs() {
         db.collection('jobs').where('companyId', '==', currentCompany).onSnapshot(snap => {
-            const list = document.getElementById('job-list');
-            list.innerHTML = '';
+            const container = document.getElementById('job-list');
+            container.innerHTML = '';
+            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:14px;">No internal parameters matching criteria located.</p>'; return; }
+            
             snap.forEach(doc => {
                 const j = doc.data();
-                const statusClass = j.status === 'Approved' ? 'status-approved' : 'status-pending';
-                list.innerHTML += `<div class="card">
-                    <h3>${j.title}</h3>
-                    <p>Vacancies: ${j.vacancy} | Salary: ${j.salary}</p>
-                    <p class="${statusClass}">Status: ${j.status}</p>
-                </div>`;
+                const statusBadge = j.status === 'Approved' ? 'badge-approved' : (j.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
+                container.innerHTML += `
+                    <div class="card">
+                        <div style="display:flex; justify-content:between; align-items:start; width:100%;">
+                            <div style="flex:1;">
+                                <h3 style="font-size:18px; font-weight:600;">${j.title}</h3>
+                                <p style="font-size:13px; color:var(--text-light); margin:4px 0 12px 0;">Allocation: ${j.vacancy} Nodes | Scaling Track: ${j.salary}</p>
+                                <span class="badge ${statusBadge}">${j.status}</span>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-outline" style="min-height:38px; padding:6px 12px; font-size:12px;" onclick="triggerJobDelete('${doc.id}')"><i class="fa-solid fa-trash-can"></i> Wipe</button>
+                            </div>
+                        </div>
+                    </div>`;
             });
         });
+    }
+
+    function triggerJobDelete(jobId) {
+        if(confirm("Confirm destructive record scrubbing sequence?")) {
+            showLoader();
+            db.collection('jobs').doc(jobId).delete().then(() => hideLoader()).catch(e => hideLoader());
+        }
     }
 
     function loadApplicants() {
         db.collection('applications').where('companyId', '==', currentCompany).onSnapshot(snap => {
-            const list = document.getElementById('applicant-list');
-            list.innerHTML = '';
+            const container = document.getElementById('applicant-list');
+            container.innerHTML = '';
+            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:14px;">No candidates mapped to internal positions.</p>'; return; }
+
             snap.forEach(doc => {
                 const a = doc.data();
-                list.innerHTML += `<div class="card">
-                    <h3>Applied for: ${a.jobTitle}</h3>
-                    <p>Candidate Email: ${a.candidateEmail || 'Not Provided'}</p>
-                    <button onclick="viewCandidate('${a.candidateId}')">View Profile</button>
-                </div>`;
+                container.innerHTML += `
+                    <div class="card">
+                        <h3 style="font-size:16px; font-weight:600;">Position Hook: ${a.jobTitle}</h3>
+                        <p style="font-size:13px; color:var(--text-light); margin:4px 0 14px 0;">Routing Reference: ${a.candidateEmail}</p>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <button class="btn btn-primary" style="min-height:40px; padding:8px 16px; font-size:13px;" onclick="viewCandidateProfile('${a.candidateId}', '${a.postedAt ? a.postedAt.toDate().toLocaleDateString() : '-'}')">Inspect Matrix</button>
+                            <select onchange="updateApplicationStatus('${doc.id}', this.value)" style="width:auto; min-height:40px; padding:0 10px; margin:0; font-size:13px;">
+                                <option value="" disabled selected>Update Allocation State</option>
+                                <option value="Shortlisted">Shortlist Target</option>
+                                <option value="Interview Scheduled">Schedule Phase Check</option>
+                                <option value="Rejected">Flag Dropout</option>
+                            </select>
+                            <span class="badge badge-pending">${a.status || 'Active Evaluation'}</span>
+                        </div>
+                    </div>`;
             });
         });
     }
 
-    function viewCandidate(candId) {
+    function updateApplicationStatus(appId, nextStatus) {
+        if(!nextStatus) return;
+        showLoader();
+        db.collection('applications').doc(appId).update({ status: nextStatus }).then(() => {
+            hideLoader();
+            alert(`Application updated: ${nextStatus}`);
+        }).catch(e => hideLoader());
+    }
+
+    function viewCandidateProfile(candId, dateApplied) {
+        showLoader();
         db.collection('candidates').doc(candId).get().then(doc => {
+            hideLoader();
             if(doc.exists) {
                 const c = doc.data();
-                alert(`Name: ${c.name}\nExp: ${c.experience}\nBio: ${c.bio}\nResume: ${c.resumeLink}`);
+                document.getElementById('m-display-name').innerText = c.name || 'Anonymous Node';
+                document.getElementById('m-display-role').innerText = `Candidate Hash: ${doc.id.substring(0,8)}`;
+                document.getElementById('m-mobile').innerText = c.mobile || 'Omitted Context';
+                document.getElementById('m-email').innerText = c.email || 'Hidden Routing';
+                document.getElementById('m-exp').innerText = c.experience || '0';
+                document.getElementById('m-date').innerText = dateApplied;
+                document.getElementById('m-skills').innerText = c.skills || 'General Capabilities Set';
+                document.getElementById('m-bio').innerText = c.bio || 'No expanded bio provided by user workspace.';
+                
+                const resumeBtn = document.getElementById('m-resume-link');
+                if(c.resumeLink) {
+                    resumeBtn.href = c.resumeLink;
+                    resumeBtn.style.display = 'inline-flex';
+                } else {
+                    resumeBtn.style.display = 'none';
+                }
+                
+                openModal('candidate-modal');
             } else {
-                alert("Candidate details not found.");
+                alert("Target candidate parameters cannot be derived inside Firestore scope.");
             }
+        }).catch(e => { hideLoader(); alert(e.message); });
+    }
+
+    function updateDashboardStatsCounters() {
+        db.collection('jobs').where('companyId', '==', currentCompany).get().then(snap => {
+            document.getElementById('stat-total-jobs').innerText = snap.size;
         });
+        db.collection('applications').where('companyId', '==', currentCompany).get().then(snap => {
+            document.getElementById('stat-total-apps').innerText = snap.size;
+        });
+    }
+
+    // --- Modern Modal Utility Framework Layers ---
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openPaymentModal() { openModal('payment-modal'); }
+
+    function processMockPayment() {
+        const selectedOption = document.getElementById('checkout-plan-select').value;
+        showLoader();
+        
+        let updateBlock = {};
+        if(selectedOption === 'per_post') {
+            updateBlock = { planType: 'per_post', jobCredits: firebase.firestore.FieldValue.increment(10), isPaid: true };
+        } else {
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 30);
+            updateBlock = { planType: 'monthly', subscriptionExpiry: firebase.firestore.Timestamp.fromDate(futureDate), isPaid: true };
+        }
+
+        db.collection('companies').doc(currentCompany).update(updateBlock).then(() => {
+            closeModal('payment-modal');
+            hideLoader();
+            alert("Sandbox Ledger Transaction Successful. Account capabilities upgraded.");
+        }).catch(e => hideLoader());
+    }
+
+    // --- Administrative View Logic Elements ---
+    function initAdminPanelPipelines() {
+        db.collection('companies').onSnapshot(snap => {
+            const tableBody = document.getElementById('admin-companies-table');
+            tableBody.innerHTML = '';
+            snap.forEach(doc => {
+                const comp = doc.data();
+                tableBody.innerHTML += `
+                    <tr>
+                        <td style="font-family:monospace; font-size:12px;">${doc.id.substring(0,12)}...</td>
+                        <td><span class="badge badge-approved">${comp.planType || 'free'}</span></td>
+                        <td>${comp.jobCredits || 0} U</td>
+                        <td>
+                            <div style="display:flex; gap:4px;">
+                                <button class="btn btn-outline" style="min-height:32px; padding:4px 8px; font-size:11px;" onclick="adminModifyCompanyPlan('${doc.id}', 'free')">Free</button>
+                                <button class="btn btn-outline" style="min-height:32px; padding:4px 8px; font-size:11px;" onclick="adminModifyCompanyPlan('${doc.id}', 'per_post')">+10 Cr</button>
+                                <button class="btn btn-outline" style="min-height:32px; padding:4px 8px; font-size:11px;" onclick="adminModifyCompanyPlan('${doc.id}', 'monthly')">Monthly</button>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+        });
+
+        db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
+            const container = document.getElementById('admin-pending-jobs');
+            container.innerHTML = '';
+            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:13px;">Pending review configuration pipeline empty.</p>'; return; }
+            
+            snap.forEach(doc => {
+                const j = doc.data();
+                container.innerHTML += `
+                    <div class="card" style="background:#FAF5FF; border:1px solid #E9D5FF;">
+                        <h4>${j.title}</h4>
+                        <p style="font-size:12px; color:var(--text-light);">Origin: ${j.companyEmail}</p>
+                        <p style="font-size:13px; margin:8px 0;">${j.desc}</p>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button class="btn btn-success" style="min-height:36px; padding:6px 12px; font-size:12px;" onclick="adminSetJobStatus('${doc.id}', 'Approved')">Approve Post</button>
+                            <button class="btn btn-danger" style="min-height:36px; padding:6px 12px; font-size:12px;" onclick="adminSetJobStatus('${doc.id}', 'Rejected')">Reject</button>
+                        </div>
+                    </div>`;
+            });
+        });
+    }
+
+    function adminModifyCompanyPlan(companyId, targetType) {
+        showLoader();
+        let payload = { planType: targetType };
+        if(targetType === 'per_post') {
+            payload.jobCredits = firebase.firestore.FieldValue.increment(10);
+        } else if(targetType === 'monthly') {
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + 30);
+            payload.subscriptionExpiry = firebase.firestore.Timestamp.fromDate(expiry);
+        }
+        db.collection('companies').doc(companyId).update(payload).then(() => hideLoader()).catch(e => hideLoader());
+    }
+
+    function adminSetJobStatus(jobId, statusValue) {
+        showLoader();
+        db.collection('jobs').doc(jobId).update({ status: statusValue }).then(() => hideLoader()).catch(e => hideLoader());
     }
 </script>
 </body>
