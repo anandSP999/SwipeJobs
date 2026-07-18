@@ -11,7 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
     
-    <!-- HTML2PDF Library -->
+    <!-- HTML2PDF Library (Fixed for Downloads) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
@@ -40,7 +40,7 @@
             .desktop-header { display: flex !important; justify-content: space-between; padding: 15px; background: var(--nav-bg); border-bottom: 1px solid #ddd; }
         }
 
-        .desktop-header { display: none; } /* Hidden on mobile */
+        .desktop-header { display: none; } 
         
         .screen { display: none; flex-direction: column; height: 100%; width: 100%; padding: 20px; overflow-y: auto; }
         .screen.active { display: flex; }
@@ -91,6 +91,9 @@
         .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #d4edda; color: #155724; margin-top: 5px; }
         
         #undo-btn { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; z-index: 50; cursor: pointer; font-size: 14px; }
+        
+        /* Profile Edit Form Styles */
+        .profile-label { font-size: 12px; font-weight: bold; color: var(--text-light); margin-bottom: 3px; display: block; }
     </style>
 </head>
 <body>
@@ -123,7 +126,7 @@
         <button onclick="openRegisterModal()" style="background: #333;">New Registration</button>
     </div>
 
-    <!-- Registration Modal (Advanced Profile) -->
+    <!-- Registration Modal -->
     <div id="register-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeRegisterModal()">✖</span>
@@ -179,22 +182,23 @@
             <div id="undo-btn" onclick="undoSwipe()">↩ Undo Reject</div>
         </div>
 
-        <!-- Right Side Panel (Desktop only for flex, toggled on mobile) -->
+        <!-- Right Side Panel -->
         <div id="view-side-panel" style="display: none; height: 100%; overflow-y: auto; padding-bottom: 60px;">
             
             <!-- Applied Jobs Tab -->
             <div id="view-applied" style="padding: 20px; display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h2>Applied Jobs</h2>
-                    <button style="width: auto; padding: 5px 10px; font-size: 12px;" onclick="generatePDF()">📄 Download PDF CV</button>
+                    <button style="width: auto; padding: 8px 12px; font-size: 12px; border-radius: 8px;" onclick="generatePDF()">📄 Download CV</button>
                 </div>
                 <div id="applied-list"></div>
             </div>
 
-            <!-- Profile Tab -->
+            <!-- Profile Tab (Now Fully Editable) -->
             <div id="view-profile" style="padding: 20px; display: none;">
                 <h2>My Profile</h2>
-                <div id="profile-details-container" style="margin-top: 15px;"></div>
+                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Update your skills and experience here.</p>
+                <div id="profile-details-container"></div>
                 <button style="background: #333; margin-top: 15px;" onclick="auth.signOut()">Logout</button>
             </div>
         </div>
@@ -253,45 +257,36 @@
     let candidateData = null;
     let currentJobOnTop = null;
     let allJobs = [];
-    let currentTabFilter = 'nearby'; // 'nearby' or 'all'
+    let currentTabFilter = 'nearby'; 
     let userCity = "";
-    let lastRejectedJob = null; // For Undo Feature
+    let lastRejectedJob = null; 
 
-    // --- Geolocation ---
     function getUserLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(pos => {
-                // Simplified logic: Real app would use Reverse Geocoding API.
-                // We rely on user's manually entered city for direct matches, 
-                // but setting up hook here for future Lat/Long expansions.
                 console.log("Lat:", pos.coords.latitude, "Lng:", pos.coords.longitude);
             });
         }
     }
 
-    // --- Dark Mode ---
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
     }
 
-    // --- Modals & UI ---
     function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
     function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
 
     function switchTab(tab) {
         if(window.innerWidth >= 1024) {
-            // Desktop: Switch within side panel
             document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
             document.getElementById('view-profile').style.display = tab === 'profile' ? 'block' : 'none';
         } else {
-            // Mobile: Switch main views
             document.getElementById('view-swipe').style.display = tab === 'swipe' ? 'flex' : 'none';
             document.getElementById('view-side-panel').style.display = (tab === 'applied' || tab === 'profile') ? 'block' : 'none';
             
             document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
             document.getElementById('view-profile').style.display = tab === 'profile' ? 'block' : 'none';
             
-            // Highlight nav
             document.querySelectorAll('.mobile-nav-tabs span').forEach(el => el.classList.remove('active-tab'));
             if(document.getElementById('tab-' + tab)) document.getElementById('tab-' + tab).classList.add('active-tab');
         }
@@ -303,10 +298,9 @@
         currentTabFilter = type;
         document.getElementById('btn-nearby').classList.toggle('active', type === 'nearby');
         document.getElementById('btn-allindia').classList.toggle('active', type === 'all');
-        renderJobs(); // Re-render with filter
+        renderJobs(); 
     }
 
-    // --- Auth & Registration ---
     async function registerNewCandidate() {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
@@ -326,11 +320,9 @@
         document.getElementById('reg-btn').innerText = "Uploading & Registering...";
 
         try {
-            // 1. Create Auth User
             const userCred = await auth.createUserWithEmailAndPassword(email, pass);
             const uid = userCred.user.uid;
 
-            // 2. Upload File to Storage (if selected)
             let resumeUrl = "";
             if(fileInput.files.length > 0) {
                 const file = fileInput.files[0];
@@ -339,7 +331,6 @@
                 resumeUrl = await snapshot.ref.getDownloadURL();
             }
 
-            // 3. Save Candidate Data to Firestore
             const newCandidateData = {
                 name, email, mobile, city, state, education, 
                 workHistory: work, bio, resumeUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -368,7 +359,6 @@
             showScreen('main-screen');
             getUserLocation();
             
-            // Fetch Candidate City for Location Filtering
             const doc = await db.collection('candidates').doc(user.uid).get();
             if(doc.exists) {
                 candidateData = doc.data();
@@ -378,7 +368,6 @@
             fetchLiveJobs();
             loadAppliedJobs();
             
-            // Default split screen setup
             if(window.innerWidth >= 1024) switchTab('applied');
         } else {
             showScreen('auth-screen');
@@ -395,14 +384,12 @@
         }
     }
 
-    // --- Job Fetching & Filtering ---
     function fetchLiveJobs() {
         db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
             allJobs = [];
             snap.forEach(doc => {
                 let jobData = doc.data();
                 jobData.id = doc.id;
-                // Generate a random apply count for UI demo if not present
                 jobData.applyCount = jobData.applyCount || Math.floor(Math.random() * 50) + 1; 
                 allJobs.push(jobData);
             });
@@ -416,12 +403,10 @@
         
         let filteredJobs = allJobs;
         
-        // Location Filter Logic
         if (currentTabFilter === 'nearby' && userCity) {
             filteredJobs = allJobs.filter(job => job.location && job.location.toLowerCase().includes(userCity));
         }
 
-        // Search Filter Logic
         const searchQuery = document.getElementById('search-box') ? document.getElementById('search-box').value.toLowerCase() : "";
         if (searchQuery) {
             filteredJobs = filteredJobs.filter(job => job.title.toLowerCase().includes(searchQuery) || (job.companyName && job.companyName.toLowerCase().includes(searchQuery)));
@@ -466,7 +451,6 @@
                 </div>
             `;
             
-            // Attach Touch/Drag Events for Tinder Swipe
             attachSwipeEvents(card, job.id);
             swipeArea.appendChild(card);
         }
@@ -476,7 +460,6 @@
         renderJobs();
     }
 
-    // --- Tinder Style Swipe Drag Logic ---
     function attachSwipeEvents(card, jobId) {
         let startX = 0, currentX = 0, isDragging = false;
 
@@ -491,7 +474,6 @@
             const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             currentX = x - startX;
             const rotate = currentX * 0.05;
-            // Apply drag transform on top of the stack scale
             const zIndexStr = card.style.zIndex;
             const index = allJobs.length - parseInt(zIndexStr);
             const scale = 1 - index * 0.05;
@@ -508,7 +490,6 @@
             } else if (currentX < -100) {
                 swipeCard(jobId, 'left');
             } else {
-                // Reset Position
                 const zIndexStr = card.style.zIndex;
                 const index = allJobs.length - parseInt(zIndexStr);
                 const scale = 1 - index * 0.05;
@@ -521,7 +502,6 @@
         card.addEventListener('touchmove', moveDrag);
         card.addEventListener('touchend', endDrag);
         
-        // Mouse events for PC testing
         card.addEventListener('mousedown', startDrag);
         window.addEventListener('mousemove', moveDrag);
         window.addEventListener('mouseup', endDrag);
@@ -543,13 +523,11 @@
         card.style.opacity = '0';
         setTimeout(() => { 
             card.remove(); 
-            // Remove from array so it doesn't re-render
             allJobs = allJobs.filter(j => j.id !== jobId);
             renderJobs(); 
         }, 300);
     }
 
-    // --- Undo Feature ---
     function showUndoBtn() {
         const btn = document.getElementById('undo-btn');
         btn.style.display = 'block';
@@ -558,21 +536,17 @@
 
     function undoSwipe() {
         if(!lastRejectedJob) return;
-        // In a real app we'd fetch it back or just re-add it to the local array.
-        // Since we filtered it out, let's just trigger a re-fetch for simplicity
         document.getElementById('undo-btn').style.display = 'none';
         fetchLiveJobs(); 
         alert("Action Undone!");
     }
 
-    // --- Applying logic (Injecting full candidate object) ---
     async function applyForJob(jobId) {
         const job = allJobs.find(j => j.id === jobId);
         if(!job) return;
 
         const compName = job.companyName || (job.companyEmail ? job.companyEmail.split('@')[0] : 'Company');
 
-        // Pura candidate data copy karke applications collection mein daalna
         const applicationData = {
             candidateId: currentUser.uid,
             companyId: job.companyId,
@@ -580,15 +554,14 @@
             companyName: compName,
             jobTitle: job.title,
             status: 'Applied',
-            candidateData: candidateData, // Full CV Database object injected!
+            candidateData: candidateData, 
             appliedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         await db.collection('applications').add(applicationData);
-        document.getElementById('notif-badge').style.display = 'block'; // Show notification dot
+        document.getElementById('notif-badge').style.display = 'block'; 
     }
 
-    // --- Applied Jobs View ---
     function loadAppliedJobs() {
         if(!currentUser) return;
         db.collection('applications').where('candidateId', '==', currentUser.uid)
@@ -608,57 +581,139 @@
                     </div>
                 `;
             });
-            // Hide notification dot when viewed
             document.getElementById('notif-badge').style.display = 'none'; 
         });
     }
 
-    // --- Auto Generate PDF Profile ---
+    // --- Profile Editing Feature (NEW) ---
+    function loadUserProfile() {
+        if(!candidateData) return;
+        const container = document.getElementById('profile-details-container');
+        
+        container.innerHTML = `
+            <div class="applied-item">
+                <label class="profile-label">Full Name</label>
+                <input type="text" id="edit-name" value="${candidateData.name || ''}" placeholder="Full Name">
+                
+                <label class="profile-label">Mobile Number</label>
+                <input type="text" id="edit-mobile" value="${candidateData.mobile || ''}" placeholder="Mobile Number">
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="width:50%;">
+                        <label class="profile-label">City</label>
+                        <input type="text" id="edit-city" value="${candidateData.city || ''}" placeholder="City">
+                    </div>
+                    <div style="width:50%;">
+                        <label class="profile-label">State</label>
+                        <input type="text" id="edit-state" value="${candidateData.state || ''}" placeholder="State">
+                    </div>
+                </div>
+
+                <label class="profile-label">Highest Education</label>
+                <input type="text" id="edit-education" value="${candidateData.education || ''}" placeholder="Highest Education">
+                
+                <label class="profile-label">Work Experience</label>
+                <textarea id="edit-work" placeholder="Work History (Past companies, years)" rows="3">${candidateData.workHistory || ''}</textarea>
+                
+                <label class="profile-label">Skills & Bio</label>
+                <textarea id="edit-bio" placeholder="Skills & Bio" rows="3">${candidateData.bio || ''}</textarea>
+                
+                ${candidateData.resumeUrl ? `<a href="${candidateData.resumeUrl}" target="_blank" style="color:var(--primary); font-weight:bold; display:block; margin-bottom:15px; text-decoration:none;">📄 View Current Uploaded PDF</a>` : ''}
+                
+                <button onclick="updateProfileData()">Save & Update Profile</button>
+            </div>
+        `;
+    }
+
+    async function updateProfileData() {
+        if(!currentUser) return;
+        
+        const updatedData = {
+            name: document.getElementById('edit-name').value,
+            mobile: document.getElementById('edit-mobile').value,
+            city: document.getElementById('edit-city').value,
+            state: document.getElementById('edit-state').value,
+            education: document.getElementById('edit-education').value,
+            workHistory: document.getElementById('edit-work').value,
+            bio: document.getElementById('edit-bio').value
+        };
+
+        try {
+            await db.collection('candidates').doc(currentUser.uid).update(updatedData);
+            // Update local object so changes reflect immediately without refresh
+            candidateData = { ...candidateData, ...updatedData };
+            alert("Profile Updated Successfully!");
+        } catch (error) {
+            alert("Error updating profile: " + error.message);
+        }
+    }
+
+    // --- Fixed PDF Generation & Watermark ---
     function generatePDF() {
         if(!candidateData) { alert("Profile data loading, try again."); return; }
         
         const element = document.createElement('div');
-        element.style.padding = '20px';
-        element.style.fontFamily = 'Arial';
-        element.innerHTML = `
-            <h1 style="color:#ff4b4b;">${candidateData.name}</h1>
-            <p>Email: ${candidateData.email} | Mobile: ${candidateData.mobile}</p>
-            <p>Location: ${candidateData.city}, ${candidateData.state}</p>
-            <hr><br>
-            <h3>Education</h3>
-            <p>${candidateData.education}</p>
-            <br>
-            <h3>Work Experience</h3>
-            <p>${candidateData.workHistory || 'N/A'}</p>
-            <br>
-            <h3>Skills & Bio</h3>
-            <p>${candidateData.bio}</p>
+        element.style.padding = '40px';
+        element.style.fontFamily = 'Arial, sans-serif';
+        element.style.color = '#333';
+        element.style.position = 'relative'; 
+
+        // Watermark Implementation
+        const watermark = document.createElement('div');
+        watermark.innerText = 'SwipeJobs';
+        watermark.style.position = 'absolute';
+        watermark.style.top = '50%';
+        watermark.style.left = '50%';
+        watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
+        watermark.style.fontSize = '80px';
+        watermark.style.fontWeight = 'bold';
+        watermark.style.color = 'rgba(0, 0, 0, 0.08)'; // Light faint watermark
+        watermark.style.zIndex = '0';
+        watermark.style.pointerEvents = 'none';
+        
+        const content = document.createElement('div');
+        content.style.position = 'relative';
+        content.style.zIndex = '1';
+        content.innerHTML = `
+            <h1 style="color:#ff4b4b; font-size:32px; margin-bottom: 5px;">${candidateData.name || 'Candidate Name'}</h1>
+            <p style="font-size: 16px; color: #555;">Email: ${candidateData.email || 'N/A'} | Mobile: ${candidateData.mobile || 'N/A'}</p>
+            <p style="font-size: 16px; color: #555;">Location: ${candidateData.city || 'N/A'}, ${candidateData.state || 'N/A'}</p>
+            
+            <hr style="margin: 25px 0; border: 0.5px solid #ccc;">
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Education</h3>
+            <p style="font-size:16px; margin-bottom: 25px; line-height: 1.5;">${candidateData.education || 'Not Provided'}</p>
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Work Experience</h3>
+            <p style="font-size:16px; margin-bottom: 25px; line-height: 1.5; white-space: pre-wrap;">${candidateData.workHistory || 'Not Provided'}</p>
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Skills & Professional Bio</h3>
+            <p style="font-size:16px; line-height: 1.5; white-space: pre-wrap;">${candidateData.bio || 'Not Provided'}</p>
         `;
 
-        html2pdf().from(element).save(`${candidateData.name}_Profile.pdf`);
+        element.appendChild(watermark);
+        element.appendChild(content);
+
+        // Required Options for better PDF rendering
+        const opt = {
+            margin:       0.5,
+            filename:     `${candidateData.name.replace(/\s+/g, '_')}_SwipeJobs_CV.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+
+        // Proper Promise implementation for download
+        html2pdf().set(opt).from(element).save().then(() => {
+            console.log("PDF generated successfully.");
+        }).catch(err => {
+            alert("Error generating PDF. Please try again.");
+            console.error(err);
+        });
     }
 
-    // --- Profile Management ---
-    function loadUserProfile() {
-        if(!candidateData) return;
-        const container = document.getElementById('profile-details-container');
-        container.innerHTML = `
-            <div class="applied-item">
-                <p><strong>Name:</strong> ${candidateData.name}</p>
-                <p><strong>Mobile:</strong> ${candidateData.mobile}</p>
-                <p><strong>Location:</strong> ${candidateData.city}, ${candidateData.state}</p>
-                <p><strong>Education:</strong> ${candidateData.education}</p>
-                <p><strong>Work:</strong> ${candidateData.workHistory}</p>
-                <br>
-                ${candidateData.resumeUrl ? `<a href="${candidateData.resumeUrl}" target="_blank" style="color:var(--primary); font-weight:bold;">📄 View Uploaded Resume</a>` : ''}
-            </div>
-            <button onclick="alert('Update feature triggers modal to re-submit details to Firestore.')">Edit Profile</button>
-        `;
-    }
-
-    // --- Fraud Report System ---
     function reportJob(jobId, event) {
-        event.stopPropagation(); // Prevent opening modal
+        event.stopPropagation(); 
         let reason = prompt("Report this job (e.g., Fake Job, Asking for money).\n\nIf fake, admin will take action in 24 hrs.\nContact: admin@swipejobs.com | +91 12345 67890\n\nEnter Reason:");
         
         if (reason && reason.trim() !== "") {
@@ -671,7 +726,6 @@
         }
     }
 
-    // --- Modals ---
     function openJobModal(jobId) {
         currentJobOnTop = allJobs.find(j => j.id === jobId);
         if(!currentJobOnTop) return;
