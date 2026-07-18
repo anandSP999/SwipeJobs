@@ -4,187 +4,511 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SwipeJobs - Super Admin</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase[span_0](start_span)[span_0](end_span) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <style>
-        :root { --admin: #e74c3c; --bg: #f9f9f9; --sidebar: #1e272e; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
-        
-        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; }
-        .sidebar h2 { padding: 20px; background: var(--admin); text-align: center; }
-        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); border-left: 4px solid var(--admin); }
-        
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .screen { display: none; }
-        .screen.active { display: block; }
-        
-        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; gap: 10px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-        
-        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; margin-bottom: 10px; }
-        button { background: var(--admin); color: white; border: none; cursor: pointer; font-weight: bold; }
-        .btn-success { background: #27ae60; }
-        .btn-danger { background: #c0392b; }
+    
+    <!-- Chart.js & SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <style>
+        :root { 
+            --admin: #4A90E2; 
+            --admin-hover: #357ABD;
+            --bg: #f4f7f6; 
+            --sidebar: #1e272e; 
+            --text: #333;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; color: var(--text); }
+        
+        /* Sidebar (PC) */
+        .sidebar { background: var(--sidebar); color: white; width: 250px; display: flex; flex-direction: column; transition: 0.3s; z-index: 1000; }
+        .sidebar h2 { padding: 20px; background: var(--admin); text-align: center; margin: 0; }
+        .nav-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: all 0.2s; display: flex; align-items: center; justify-content: space-between; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); border-left: 4px solid var(--admin); }
+        .badge { background: #e74c3c; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; display: none; }
+        
+        /* Top Bar */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; box-shadow: var(--shadow); }
+        .top-bar .search-bar { width: 300px; padding: 8px 15px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+        .hamburger { display: none; font-size: 24px; cursor: pointer; background: none; border: none; color: var(--text); }
+
+        /* Main Content */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        
+        /* Transitions & Layout */
+        .screen { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* UI Elements */
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow); text-align: center; border-bottom: 4px solid var(--admin); }
+        .kpi-card h3 { font-size: 24px; color: var(--admin); }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 15px; }
+        
+        input, select { padding: 12px; border-radius: 8px; border: 1px solid #ddd; width: 100%; margin-bottom: 12px; min-height: 44px; outline: none; }
+        button { background: var(--admin); color: white; border: none; cursor: pointer; font-weight: 600; padding: 12px; border-radius: 8px; min-height: 44px; transition: 0.2s; }
+        button:hover { background: var(--admin-hover); }
+        .btn-success { background: #2ecc71; } .btn-success:hover { background: #27ae60; }
+        .btn-danger { background: #e74c3c; } .btn-danger:hover { background: #c0392b; }
+        
+        /* Tables (PC View) */
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: var(--shadow); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: var(--admin); color: white; position: sticky; top: 0; z-index: 10; }
+        
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; }
+
+        /* Responsive Design (Mobile) */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; }
-            .sidebar h2 { width: 100%; }
-            .nav-item { flex: 1; text-align: center; padding: 10px; font-size: 14px; }
-            .grid-3 { grid-template-columns: 1fr; }
+            .sidebar { position: fixed; left: -250px; height: 100%; }
+            .sidebar.open { left: 0; box-shadow: 4px 0 15px rgba(0,0,0,0.2); }
+            .hamburger { display: block; }
+            .top-bar .search-bar { display: none; }
+            .grid-4 { grid-template-columns: 1fr 1fr; }
+            
+            /* Table to Cards for Mobile */
+            table, thead, tbody, th, td, tr { display: block; }
+            th { display: none; }
+            tr { border: 1px solid #eee; border-radius: 8px; margin-bottom: 15px; box-shadow: var(--shadow); background: white; padding: 10px; }
+            td { text-align: right; padding-left: 50%; position: relative; border-bottom: none; }
+            td::before { content: attr(data-label); position: absolute; left: 15px; width: 45%; text-align: left; font-weight: bold; color: var(--admin); }
         }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
-        <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
-            <h2 style="color: var(--admin); margin-bottom: 15px;">Admin Gateway</h2>
-            <input type="email" id="a-email" placeholder="Admin Email">
-            <input type="password" id="a-pass" placeholder="Secret Password">
-            <button onclick="loginAdmin()">Access System</button>
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="main-wrapper" style="justify-content: center; align-items: center; display: flex;">
+        <div class="card" style="width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="color: var(--admin); margin-bottom: 20px;">Admin Gateway[span_1](start_span)[span_1](end_span)</h2>
+            <input type="email" id="a-email" placeholder="Admin Email[span_2](start_span)"[span_2](end_span)>
+            <input type="password" id="a-pass" placeholder="Secret Password[span_3](start_span)"[span_3](end_span)>
+            <button onclick="loginAdmin()" style="width: 100%;">Access System[span_4](start_span)[span_4](end_span)</button>
         </div>
     </div>
 
-    <div class="sidebar" id="sidebar" style="display: none;">
-        <h2>Admin Panel</h2>
-        <div class="nav-item active" onclick="nav('job-approvals')">Job Approvals</div>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <h2>Admin Panel[span_5](start_span)[span_5](end_span)</h2>
+        <div class="nav-item active" onclick="nav('dashboard')">Dashboard</div>
+        <div class="nav-item" onclick="nav('job-approvals')">Job Approvals <span class="badge" id="job-badge"></span></div>
         <div class="nav-item" onclick="nav('manage-companies')">Manage Companies</div>
-        <div class="nav-item" onclick="nav('all-candidates')">All Candidates</div>
-        <div class="nav-item" onclick="nav('all-applications')">Application Logs</div>
+        <div class="nav-item" onclick="nav('payment-logs')">Payment Logs</div>
+        <div class="nav-item" onclick="nav('all-candidates')">Candidates</div>
+        <div class="nav-item" onclick="nav('all-applications')">Applications</div>
     </div>
 
-    <div class="main-content" id="dashboard" style="display: none;">
-        <div id="job-approvals" class="screen active">
-            <h2>Pending Job Reviews</h2><br>
-            <div id="pending-jobs" class="grid-3"></div>
+    <div class="main-wrapper" id="main-wrapper" style="display: none;">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <button class="hamburger" onclick="toggleSidebar()">☰</button>
+            <input type="text" class="search-bar" placeholder="Global Search...">
+            <div style="font-weight: 600;">Super Admin Profiler</div>
         </div>
 
-        <div id="manage-companies" class="screen">
-            <h2>Registered Companies & Billing</h2><br>
-            <div id="companies-list"></div>
-        </div>
+        <div class="main-content" id="dashboard-content">
+            
+            <!-- 1. Dashboard -->
+            <div id="dashboard" class="screen active">
+                <div class="grid-4">
+                    <div class="kpi-card"><h4>Revenue</h4><h3 id="kpi-revenue">₹0</h3></div>
+                    <div class="kpi-card"><h4>Active Companies</h4><h3 id="kpi-companies">0</h3></div>
+                    <div class="kpi-card"><h4>Candidates</h4><h3 id="kpi-candidates">0</h3></div>
+                    <div class="kpi-card"><h4>Approved Jobs</h4><h3 id="kpi-jobs">0</h3></div>
+                </div>
+                <div class="card">
+                    <h3>Revenue Overview</h3>
+                    <canvas id="revenueChart" height="80"></canvas>
+                </div>
+            </div>
 
-        <div id="all-candidates" class="screen">
-            <h2>Candidate Database</h2><br>
-            <div id="candidates-list" class="grid-3"></div>
-        </div>
+            <!-- 2. Job Approvals -->
+            <div id="job-approvals" class="screen">
+                <h2>Pending Job Reviews[span_6](start_span)[span_6](end_span)</h2><br>
+                <div id="pending-jobs" class="grid-3"></div>
+            </div>
 
-        <div id="all-applications" class="screen">
-            <h2>Platform Application Logs</h2><br>
-            <div id="applications-list"></div>
+            <!-- 3. Manage Companies -->
+            <div id="manage-companies" class="screen">
+                <h2>Registered Companies[span_7](start_span)[span_7](end_span)</h2><br>
+                <table>
+                    <thead>
+                        <tr><th>Email</th><th>Plan</th><th>Posts Used</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="companies-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- 4. Payment Logs -->
+            <div id="payment-logs" class="screen">
+                <h2>Payment Logs</h2><br>
+                <table>
+                    <thead><tr><th>Company ID</th><th>Amount</th><th>Plan</th><th>Date</th><th>Status</th></tr></thead>
+                    <tbody id="payments-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- 5. Candidates -->
+            <div id="all-candidates" class="screen">
+                <h2>Candidate Database[span_8](start_span)[span_8](end_span)</h2>
+                <input type="text" id="cand-search" placeholder="Search by Name or Email..." oninput="filterCandidates()">
+                <div id="candidates-list" class="grid-3" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- 6. Applications -->
+            <div id="all-applications" class="screen">
+                <h2>Platform Application Logs[span_9](start_span)[span_9](end_span)</h2><br>
+                <table>
+                    <thead><tr><th>Candidate</th><th>Company</th><th>Job Title</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody id="applications-table-body"></tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Company Edit Modal -->
+    <div class="modal-overlay" id="companyModal">
+        <div class="modal">
+            <h3 style="margin-bottom: 15px; color: var(--admin)">Manage Company</h3>
+            <input type="hidden" id="modal-cid">
+            <label>Plan Type</label>
+            <select id="modal-plan">
+                <option value="free">Free</option>
+                <option value="per_post">Pay Per Post</option>
+                <option value="monthly">Monthly Subscription</option>
+            </select>
+            <label>Set Plan Price (₹)</label>
+            <input type="number" id="modal-price" placeholder="e.g. 50 or 999">
+            <label>Status</label>
+            <select id="modal-status">
+                <option value="active">Active</option>
+                <option value="deactivated">Deactivated</option>
+            </select>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-success" onclick="saveCompanyDetails()" style="flex: 1;">Save Changes</button>
+                <button class="btn-danger" onclick="deleteCompany()" style="flex: 1;">Delete</button>
+                <button style="background: #95a5a6; flex: 1;" onclick="closeModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
 <script>
+    // Firebase Configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
-      authDomain: "swipejobs-a5317.firebaseapp.com",
-      projectId: "swipejobs-a5317",
-      storageBucket: "swipejobs-a5317.firebasestorage.app",
-      messagingSenderId: "916910145870",
-      appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+      apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",[span_10](start_span)[span_10](end_span)
+      authDomain: "swipejobs-a5317.firebaseapp.com",[span_11](start_span)[span_11](end_span)
+      projectId: "swipejobs-a5317",[span_12](start_span)[span_12](end_span)
+      storageBucket: "swipejobs-a5317.firebasestorage.app",[span_13](start_span)[span_13](end_span)
+      messagingSenderId: "916910145870",[span_14](start_span)[span_14](end_span)
+      appId: "1:916910145870:web:7afb0e09cba45405d0de1f[span_15](start_span)"[span_15](end_span)
     };
-    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-    const auth = firebase.auth(); const db = firebase.firestore();
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }[span_16](start_span)[span_16](end_span)
+    const auth = firebase.auth();[span_17](start_span)[span_17](end_span) 
+    const db = firebase.firestore();[span_18](start_span)[span_18](end_span)
+
+    let activeListeners = [];
+
+    // UI Logic
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
 
     function nav(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
-        event.target.classList.add('active');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));[span_19](start_span)[span_19](end_span)
+        document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));[span_20](start_span)[span_20](end_span)
+        document.getElementById(screenId).classList.add('active');[span_21](start_span)[span_21](end_span)
+        if(event) event.currentTarget.classList.add('active');
+        if(window.innerWidth <= 768) toggleSidebar(); // Auto-close on mobile
     }
 
     function loginAdmin() {
-        const email = document.getElementById('a-email').value;
-        const pass = document.getElementById('a-pass').value;
-        auth.signInWithEmailAndPassword(email, pass).then(cred => {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('sidebar').style.display = 'flex';
-            document.getElementById('dashboard').style.display = 'block';
-            loadAdminData();
-        }).catch(err => alert("Access Denied: " + err.message));
+        const email = document.getElementById('a-email').value;[span_22](start_span)[span_22](end_span)
+        const pass = document.getElementById('a-pass').value;[span_23](start_span)[span_23](end_span)
+        auth.signInWithEmailAndPassword(email, pass).then(cred => {[span_24](start_span)[span_24](end_span)
+            document.getElementById('auth-screen').style.display = 'none';[span_25](start_span)[span_25](end_span)
+            document.getElementById('sidebar').style.display = 'flex';[span_26](start_span)[span_26](end_span)
+            document.getElementById('main-wrapper').style.display = 'flex';
+            initDashboard();
+        }).catch(err => Swal.fire('Error', "Access Denied: " + err.message, 'error'));[span_27](start_span)[span_27](end_span)
     }
 
-    function loadAdminData() {
-        db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
-            const list = document.getElementById('pending-jobs');
-            list.innerHTML = '';
-            snap.forEach(doc => {
-                const j = doc.data();
+    function initDashboard() {
+        // Clear previous listeners to prevent memory leaks
+        activeListeners.forEach(unsub => unsub());
+        activeListeners = [];
+
+        // 1. Load KPIs
+        loadKPIs();
+        
+        // 2. Pending Jobs & Notifications
+        const unsubJobs = db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {[span_28](start_span)[span_28](end_span)
+            const list = document.getElementById('pending-jobs');[span_29](start_span)[span_29](end_span)
+            const badge = document.getElementById('job-badge');
+            list.innerHTML = '';[span_30](start_span)[span_30](end_span)
+            
+            if(snap.size > 0) {
+                badge.style.display = 'inline-block';
+                badge.innerText = snap.size;
+            } else {
+                badge.style.display = 'none';
+            }
+
+            snap.forEach(doc => {[span_31](start_span)[span_31](end_span)
+                const j = doc.data();[span_32](start_span)[span_32](end_span)
                 list.innerHTML += `<div class="card">
-                    <h3>${j.title}</h3>
-                    <p>Company: ${j.companyEmail || j.companyId}</p>
-                    <p>Desc: ${j.desc}</p>
+                    <h3>${j.title}</h3>[span_33](start_span)[span_33](end_span)
+                    <p><b>Company:</b> ${j.companyEmail || j.companyId}</p>[span_34](start_span)[span_34](end_span)
+                    <p style="margin-bottom:10px;"><b>Desc:</b> ${j.desc}</p>[span_35](start_span)[span_35](end_span)
+                    <input type="text" id="rej-${doc.id}" placeholder="Reason for rejection (if any)...">
                     <div style="display:flex; gap:10px;">
-                        <button class="btn-success" onclick="updateJob('${doc.id}', 'Approved')">Approve</button>
-                        <button class="btn-danger" onclick="updateJob('${doc.id}', 'Rejected')">Reject</button>
+                        <button class="btn-success" style="flex:1" onclick="approveJob('${doc.id}', '${j.companyId}')">Approve</button>
+                        <button class="btn-danger" style="flex:1" onclick="rejectJob('${doc.id}')">Reject</button>
                     </div>
-                </div>`;
+                </div>`;[span_36](start_span)[span_36](end_span)
+            });[span_37](start_span)[span_37](end_span)
+        });
+        activeListeners.push(unsubJobs);
+
+        // 3. Load Companies
+        const unsubComp = db.collection('companies').onSnapshot(snap => {[span_38](start_span)[span_38](end_span)
+            const tbody = document.getElementById('companies-table-body');
+            tbody.innerHTML = '';
+            snap.forEach(doc => {[span_39](start_span)[span_39](end_span)
+                const c = doc.data();[span_40](start_span)[span_40](end_span)
+                tbody.innerHTML += `<tr>
+                    <td data-label="Email"><b>${c.email}</b></td>
+                    <td data-label="Plan"><span style="text-transform: capitalize;">${c.planType || 'free'}</span></td>
+                    <td data-label="Posts Used">${c.totalPostsUsed || 0}</td>
+                    <td data-label="Status">${c.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</td>
+                    <td data-label="Actions"><button onclick="openModal('${doc.id}', '${c.planType}', '${c.pricePerPost || c.monthlyPrice || 0}', '${c.status}')">Manage</button></td>
+                </tr>`;
             });
         });
+        activeListeners.push(unsubComp);
 
-        db.collection('companies').onSnapshot(snap => {
-            const list = document.getElementById('companies-list');
-            list.innerHTML = '';
-            snap.forEach(doc => {
-                const c = doc.data();
-                list.innerHTML += `<div class="card" style="display:flex; flex-direction:column; gap:10px;">
-                    <div>
-                        <h3>${c.email}</h3>
-                        <p>Current Plan: <b>${c.planType || 'free'}</b></p>
-                    </div>
-                    <div>
-                        <select id="plan-${doc.id}">
-                            <option value="free" ${c.planType === 'free' ? 'selected' : ''}>Free Forever</option>
-                            <option value="per_post" ${c.planType === 'per_post' ? 'selected' : ''}>Pay Per Post</option>
-                            <option value="subscription" ${c.planType === 'subscription' ? 'selected' : ''}>Monthly Sub</option>
+        // 4. Load Payments & Chart
+        loadPayments();
+
+        // 5. Load Candidates
+        const unsubCand = db.collection('candidates').onSnapshot(snap => {[span_41](start_span)[span_41](end_span)
+            window.candidatesData = [];
+            snap.forEach(doc => window.candidatesData.push({id: doc.id, ...doc.data()}));
+            renderCandidates(window.candidatesData);
+        });
+        activeListeners.push(unsubCand);
+
+        // 6. Load Applications
+        const unsubApps = db.collection('applications').onSnapshot(snap => {[span_42](start_span)[span_42](end_span)
+            const tbody = document.getElementById('applications-table-body');
+            tbody.innerHTML = '';
+            snap.forEach(doc => {[span_43](start_span)[span_43](end_span)
+                const a = doc.data();[span_44](start_span)[span_44](end_span)
+                tbody.innerHTML += `<tr>
+                    <td data-label="Candidate">${a.candidateEmail || a.candidateId}</td>
+                    <td data-label="Company">${a.companyName || a.companyId}</td>
+                    <td data-label="Job Title">${a.jobTitle}</td>
+                    <td data-label="Status"><b>${a.status || 'Applied'}</b></td>
+                    <td data-label="Action">
+                        <select onchange="updateAppStatus('${doc.id}', this.value)" style="margin:0; min-height: 35px;">
+                            <option value="">Update...</option>
+                            <option value="Reviewed">Reviewed</option>
+                            <option value="Interview Scheduled">Interview Scheduled</option>
+                            <option value="Hired">Hired</option>
                         </select>
-                        <button onclick="updateBilling('${doc.id}')">Update Billing</button>
-                    </div>
-                </div>`;
+                    </td>
+                </tr>`;
             });
         });
+        activeListeners.push(unsubApps);
+    }
 
+    // --- Core Features Logic ---
+
+    function loadKPIs() {
+        db.collection('payments').where('status', '==', 'paid').onSnapshot(snap => {
+            let total = 0;
+            snap.forEach(doc => total += (doc.data().amount || 0));
+            document.getElementById('kpi-revenue').innerText = `₹${total}`;
+        });
+        db.collection('companies').where('status', '==', 'active').onSnapshot(snap => {
+            document.getElementById('kpi-companies').innerText = snap.size;
+        });
         db.collection('candidates').onSnapshot(snap => {
-            const list = document.getElementById('candidates-list');
-            list.innerHTML = '';
-            snap.forEach(doc => {
-                const c = doc.data();
-                list.innerHTML += `<div class="card">
-                    <h3>${c.name}</h3>
-                    <p>Email: ${c.email}</p>
-                    <p>Exp: ${c.experience}</p>
-                    <a href="${c.resumeLink}" target="_blank">View Resume</a>
-                </div>`;
-            });
+            document.getElementById('kpi-candidates').innerText = snap.size;
         });
+        db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
+            document.getElementById('kpi-jobs').innerText = snap.size;
+        });
+    }
 
-        db.collection('applications').onSnapshot(snap => {
-            const list = document.getElementById('applications-list');
-            list.innerHTML = '';
+    function loadPayments() {
+        db.collection('payments').orderBy('date', 'desc').onSnapshot(snap => {
+            const tbody = document.getElementById('payments-table-body');
+            tbody.innerHTML = '';
+            let chartLabels = [];
+            let chartData = [];
+            
             snap.forEach(doc => {
-                const a = doc.data();
-                list.innerHTML += `<div class="card">
-                    <b>Candidate:</b> ${a.candidateEmail || a.candidateId} <br>
-                    <b>Applied To:</b> ${a.companyName || a.companyId} <br>
-                    <b>Job Title:</b> ${a.jobTitle}
-                </div>`;
+                const p = doc.data();
+                const d = p.date ? new Date(p.date.toDate()).toLocaleDateString() : 'N/A';
+                
+                if(p.status === 'paid' && p.amount) {
+                    chartLabels.push(d);
+                    chartData.push(p.amount);
+                }
+
+                tbody.innerHTML += `<tr>
+                    <td data-label="Company ID">${p.companyId}</td>
+                    <td data-label="Amount">₹${p.amount}</td>
+                    <td data-label="Plan">${p.planType}</td>
+                    <td data-label="Date">${d}</td>
+                    <td data-label="Status">${p.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</td>
+                </tr>`;
+            });
+
+            // Initialize Chart.js
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            if(window.revChart) window.revChart.destroy();
+            window.revChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels.reverse().slice(-7), // Last 7 transactions
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: chartData.reverse().slice(-7),
+                        borderColor: '#4A90E2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.2)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true }
             });
         });
     }
 
-    function updateJob(jobId, status) {
-        db.collection('jobs').doc(jobId).update({ status: status });
+    async function approveJob(jobId, companyId) {
+        if(!companyId) return confirmApprove(jobId); // Legacy bypass
+
+        const docRef = await db.collection('companies').doc(companyId).get();
+        if(docRef.exists) {
+            const data = docRef.data();
+            if (data.planType === 'per_post' && (data.totalPostsUsed >= data.maxPostsAllowed || data.maxPostsAllowed === undefined)) {
+                Swal.fire('Billing Alert', "Company has exhausted its posts or balance. Please recharge first.", 'warning');
+                return;
+            }
+            // Increment posts used
+            await db.collection('companies').doc(companyId).update({
+                totalPostsUsed: firebase.firestore.FieldValue.increment(1)
+            });
+        }
+        confirmApprove(jobId);
     }
 
-    function updateBilling(companyId) {
-        const plan = document.getElementById(`plan-${companyId}`).value;
-        db.collection('companies').doc(companyId).update({ planType: plan, paid: plan === 'free' });
-        alert("Company Billing Updated!");
+    function confirmApprove(jobId) {
+        db.collection('jobs').doc(jobId).update({ status: 'Approved' });[span_45](start_span)[span_45](end_span)
+        Swal.fire('Success', 'Job Approved!', 'success');
+    }
+
+    function rejectJob(jobId) {
+        const reason = document.getElementById(`rej-${jobId}`).value || "No reason provided.";
+        db.collection('jobs').doc(jobId).update({ 
+            status: 'Rejected',
+            rejectionReason: reason
+        });
+        Swal.fire('Rejected', 'Job has been rejected.', 'info');
+    }
+
+    function updateAppStatus(appId, newStatus) {
+        if(!newStatus) return;
+        db.collection('applications').doc(appId).update({ status: newStatus });
+        Swal.fire('Updated', 'Application status changed to ' + newStatus, 'success');
+    }
+
+    // Modal Logic
+    function openModal(id, plan, price, status) {
+        document.getElementById('modal-cid').value = id;
+        document.getElementById('modal-plan').value = plan || 'free';
+        document.getElementById('modal-price').value = price || 0;
+        document.getElementById('modal-status').value = status || 'active';
+        document.getElementById('companyModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('companyModal').style.display = 'none';
+    }
+
+    function saveCompanyDetails() {
+        const id = document.getElementById('modal-cid').value;
+        const plan = document.getElementById('modal-plan').value;
+        const price = Number(document.getElementById('modal-price').value);
+        const status = document.getElementById('modal-status').value;
+        
+        let updateData = { planType: plan, status: status };
+        if(plan === 'per_post') updateData.pricePerPost = price;
+        if(plan === 'monthly') updateData.monthlyPrice = price;
+
+        db.collection('companies').doc(id).update(updateData).then(() => {
+            Swal.fire('Saved!', 'Company billing settings updated.', 'success');
+            closeModal();
+        });
+    }
+
+    function deleteCompany() {
+        const id = document.getElementById('modal-cid').value;
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this company deletion!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.collection('companies').doc(id).delete();
+                Swal.fire('Deleted!', 'Company has been deleted.', 'success');
+                closeModal();
+            }
+        });
+    }
+
+    // Search Candidates
+    function renderCandidates(data) {
+        const list = document.getElementById('candidates-list');
+        list.innerHTML = '';
+        data.forEach(c => {
+            list.innerHTML += `<div class="card">
+                <h3>${c.name}</h3>[span_46](start_span)[span_46](end_span)
+                <p><b>Email:</b> ${c.email}</p>[span_47](start_span)[span_47](end_span)
+                <p><b>Exp:</b> ${c.experience}</p>[span_48](start_span)[span_48](end_span)
+                <a href="${c.resumeLink}" target="_blank" style="display:inline-block; margin-top:10px; color:var(--admin); text-decoration:none; font-weight:bold;">📄 View Resume</a>[span_49](start_span)[span_49](end_span)
+            </div>`;
+        });
+    }
+
+    function filterCandidates() {
+        const term = document.getElementById('cand-search').value.toLowerCase();
+        const filtered = window.candidatesData.filter(c => 
+            (c.name && c.name.toLowerCase().includes(term)) || 
+            (c.email && c.email.toLowerCase().includes(term))
+        );
+        renderCandidates(filtered);
     }
 </script>
 </body>
