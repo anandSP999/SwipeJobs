@@ -87,6 +87,7 @@
         .badge-pending { background: #FEF3C7; color: #D97706; }
         .badge-approved { background: #D1FAE5; color: #059669; }
         .badge-rejected { background: #FEE2E2; color: #DC2626; }
+        .badge-count { background: #E0F2FE; color: #0284C7; }
         .billing-banner { background: #EFF6FF; border-left: 4px solid var(--primary); padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; color: #1E40AF; font-size: 14px; }
         
         .table-responsive { width: 100%; overflow-x: auto; }
@@ -167,7 +168,7 @@
                 </div>
             </div>
 
-            <!-- NEW: MANDATORY COMPANY PROFILE SCREEN -->
+            <!-- MANDATORY COMPANY PROFILE SCREEN -->
             <div id="company-profile" class="screen">
                 <h2>Company Profile Setup</h2>
                 <div class="card">
@@ -188,7 +189,7 @@
                 </div>
             </div>
 
-            <!-- 2. POST JOB FORM SCREEN -->
+            <!-- 2. POST JOB FORM SCREEN (Updated with City & State) -->
             <div id="post-job" class="screen">
                 <h2>Launch Position Listing</h2>
                 <div id="billing-warning" class="billing-banner" style="display:none;">
@@ -196,10 +197,17 @@
                     <span>System Notice: Access restrictions apply based on your administrative credit allocation status.</span>
                 </div>
                 <div class="card">
-                    <div class="form-group"><label>Job Title / Specification</label><input type="text" id="j-title" placeholder="e.g. Senior Video Editor"></div>
-                    <div class="form-group"><label>Compensation Metric</label><input type="text" id="j-salary" placeholder="e.g. ₹8,000 - ₹12,000 / Month"></div>
-                    <div class="form-group"><label>Allocated Headcount Vacancies</label><input type="number" id="j-vacancy" placeholder="e.g. 3"></div>
-                    <div class="form-group"><label>Execution Requirements</label><textarea id="j-desc" rows="5" placeholder="Outline specific criteria..."></textarea></div>
+                    <div class="form-group"><label>Job Title / Specification *</label><input type="text" id="j-title" placeholder="e.g. Senior Video Editor"></div>
+                    <div class="form-group"><label>Compensation Metric *</label><input type="text" id="j-salary" placeholder="e.g. ₹8,000 - ₹12,000 / Month"></div>
+                    
+                    <!-- NEW MANDATORY LOCATION FIELDS -->
+                    <div style="display: flex; gap: 15px; margin-bottom: 16px;">
+                        <div style="flex: 1;"><label>City *</label><input type="text" id="j-city" placeholder="e.g. Surat"></div>
+                        <div style="flex: 1;"><label>State *</label><input type="text" id="j-state" placeholder="e.g. Gujarat"></div>
+                    </div>
+
+                    <div class="form-group"><label>Allocated Headcount Vacancies *</label><input type="number" id="j-vacancy" placeholder="e.g. 3"></div>
+                    <div class="form-group"><label>Execution Requirements *</label><textarea id="j-desc" rows="5" placeholder="Outline specific criteria..."></textarea></div>
                     <button class="btn btn-primary" onclick="postJob()">Submit To Review Pipe</button>
                 </div>
             </div>
@@ -221,7 +229,7 @@
                 <h2>Account Plan Status</h2>
                 <div class="card">
                     <h3>Plan Framework: <span id="plan-status" style="color:var(--primary);">FREE FRAMEWORK</span></h3>
-                    <p style="margin-top:12px; color:var(--text-light);" id="plan-desc">Loading parameters...</p>
+                    <p style="margin-top:12px; color:var(--text-light); line-height: 1.6;" id="plan-desc">Loading parameters...</p>
                     <button class="btn btn-outline" style="margin-top: 20px;" onclick="openPaymentModal()">Trigger Subscription Upgrade Process</button>
                 </div>
             </div>
@@ -259,25 +267,31 @@
         </div>
     </div>
 
-    <!-- MODAL: CANDIDATE RICH EXTENDED DATASHEET VIEW -->
+    <!-- MODAL: CANDIDATE RICH EXTENDED DATASHEET VIEW (Fixed Visibility) -->
     <div class="modal-overlay" id="candidate-modal">
         <div class="modal-card">
-            <div class="modal-header"><h3 style="font-weight:600;">Professional Profile</h3><button onclick="closeModal('candidate-modal')" style="background:transparent; font-size:20px; border:none; color:var(--text-light);"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="modal-header">
+                <h3 style="font-weight:600;">Candidate Details</h3>
+                <button onclick="closeModal('candidate-modal')" style="background:transparent; font-size:20px; border:none; color:var(--text-light); cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
             <div class="modal-body">
                 <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
                     <div style="width:64px; height:64px; border-radius:50%; background:#E2E8F0; display:flex; align-items:center; justify-content:center; font-size:24px; color:#94A3B8;"><i class="fa-solid fa-user"></i></div>
-                    <div><h4 id="m-display-name" style="font-size:18px; font-weight:600;">-</h4><p id="m-display-role" style="font-size:13px; color:var(--text-light); font-weight:500;">-</p></div>
+                    <div><h4 id="m-display-name" style="font-size:18px; font-weight:600;">-</h4><p id="m-display-role" style="font-size:13px; color:var(--text-light); font-weight:500;">Candidate Application</p></div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
-                    <div><label>Communications</label><p id="m-mobile" style="font-size:14px; font-weight:500;">-</p></div>
+                    <div><label>Mobile Number</label><p id="m-mobile" style="font-size:14px; font-weight:600; color:var(--text-dark);">-</p></div>
                     <div><label>Email ID</label><p id="m-email" style="font-size:14px; font-weight:500;">-</p></div>
-                    <div><label>Experience</label><p id="m-exp" style="font-size:14px; font-weight:500;">- Years</p></div>
+                    <div><label>Experience</label><p id="m-exp" style="font-size:14px; font-weight:500;">-</p></div>
                     <div><label>Applied Date</label><p id="m-date" style="font-size:14px; font-weight:500;">-</p></div>
                 </div>
                 <div class="form-group"><label>Skills</label><p id="m-skills" style="font-size:14px; background:#F3F4F6; padding:10px; border-radius:8px; font-weight:500;">-</p></div>
-                <div class="form-group"><label>Biography</label><p id="m-bio" style="font-size:14px; color:#4B5563; line-height:1.6;">-</p></div>
+                <div class="form-group"><label>Biography / About</label><p id="m-bio" style="font-size:14px; color:#4B5563; line-height:1.6;">-</p></div>
             </div>
-            <div class="modal-footer"><a id="m-resume-link" target="_blank" class="btn btn-success" style="text-decoration:none; color:white;"><i class="fa-solid fa-file-arrow-download"></i> Extract Resume Ledger</a></div>
+            <div class="modal-footer">
+                <a id="m-resume-link" target="_blank" class="btn btn-success" style="text-decoration:none; color:white; display:none;"><i class="fa-solid fa-file-arrow-download"></i> Download CV / Resume</a>
+                <button class="btn btn-outline" onclick="closeModal('candidate-modal')">Close</button>
+            </div>
         </div>
     </div>
 
@@ -334,7 +348,7 @@
     
     let currentCompany = null;
     let cachedCompanyProfile = null;
-    const UPI_ID = "8866653002@Kotakbank"; // Hardcoded specific UPI
+    const UPI_ID = "8866653002@Kotakbank";
 
     auth.onAuthStateChanged(user => {
         if(user) { checkCompanyAuth(user.uid); } 
@@ -361,7 +375,7 @@
     function registerCompany() {
         const email = document.getElementById('c-email').value;
         const pass = document.getElementById('c-pass').value;
-        if(!email || !pass) return alert("All profile allocation inputs required.");
+        if(!email || !pass) return alert("All inputs required.");
         showLoader();
         auth.createUserWithEmailAndPassword(email, pass).then(cred => {
             db.collection('companies').doc(cred.user.uid).set({
@@ -374,7 +388,7 @@
     function loginCompany() {
         const email = document.getElementById('c-email').value;
         const pass = document.getElementById('c-pass').value;
-        if(!email || !pass) return alert("Credentials mapping criteria empty.");
+        if(!email || !pass) return alert("Credentials missing.");
         showLoader();
         auth.signInWithEmailAndPassword(email, pass).then(cred => checkCompanyAuth(cred.user.uid)).catch(err => { hideLoader(); alert(err.message); });
     }
@@ -391,12 +405,10 @@
                 document.getElementById('stat-active-plan').innerText = (cachedCompanyProfile.planType || 'free').toUpperCase();
                 document.getElementById('plan-status').innerText = (cachedCompanyProfile.planType || 'free').toUpperCase();
                 
-                // Profile Validation Check (Mandatory Logic)
                 if(!cachedCompanyProfile.profileCompleted) {
                     document.getElementById('profile-warning').style.display = 'flex';
                 } else {
                     document.getElementById('profile-warning').style.display = 'none';
-                    // Populate existing details if navigating to profile
                     document.getElementById('prof-name').value = cachedCompanyProfile.companyName || '';
                     document.getElementById('prof-phone').value = cachedCompanyProfile.companyPhone || '';
                     document.getElementById('prof-address').value = cachedCompanyProfile.companyAddress || '';
@@ -439,17 +451,20 @@
         const p = cachedCompanyProfile;
         const warningBanner = document.getElementById('billing-warning');
         let statusString = "";
+        
+        // ADMIN PRICE FIX: Explicitly showing admin configured pricing and limits to company
         if(p.planType === 'free') {
-            warningBanner.style.display = 'none'; statusString = "Standard Global Open-Tier Configuration active.";
+            warningBanner.style.display = 'none'; 
+            statusString = "Standard Free Plan Active. Waiting for upgrade.";
         } else if(p.planType === 'per_post') {
-            statusString = `Pay-Per-Post: ${p.jobCredits || 0} Posts Remain.`;
+            statusString = `Pay-Per-Post Plan Active. \nRemaining Credits: <b>${p.jobCredits || 0} Posts</b>.\nOfficial Price: ₹500 per 10 Posts.`;
             warningBanner.style.display = p.jobCredits > 0 ? 'none' : 'flex';
         } else if(p.planType === 'monthly') {
             const hasTime = p.subscriptionExpiry ? (p.subscriptionExpiry.toDate() > new Date()) : false;
-            statusString = hasTime ? `Premium Active until: ${p.subscriptionExpiry.toDate().toLocaleDateString()}` : "License Expired.";
+            statusString = hasTime ? `Premium Monthly License Active.\nExpires on: <b>${p.subscriptionExpiry.toDate().toLocaleDateString()}</b>.\nOfficial Price: ₹2000 / Month.` : "License Expired.";
             warningBanner.style.display = hasTime ? 'none' : 'flex';
         }
-        document.getElementById('plan-desc').innerText = statusString;
+        document.getElementById('plan-desc').innerHTML = statusString;
     }
 
     function canPostJob() {
@@ -469,7 +484,7 @@
         }
 
         if(!canPostJob()) {
-            alert("Validation Interrupted: Insufficient deployment privileges. Go to Billing.");
+            alert("Validation Interrupted: Insufficient job credits. Go to Billing to upgrade.");
             nav('billing');
             return;
         }
@@ -478,7 +493,14 @@
         const salary = document.getElementById('j-salary').value;
         const vacancy = document.getElementById('j-vacancy').value;
         const desc = document.getElementById('j-desc').value;
-        if(!title || !salary || !vacancy || !desc) return alert("Complete all parameter fields.");
+        
+        // MANDATORY CITY & STATE VALIDATION
+        const city = document.getElementById('j-city').value;
+        const state = document.getElementById('j-state').value;
+        
+        if(!title || !salary || !vacancy || !desc || !city || !state) {
+            return alert("Complete all parameter fields. City and State are mandatory!");
+        }
 
         showLoader();
         const payload = {
@@ -486,6 +508,7 @@
             companyName: cachedCompanyProfile.companyName,
             companyEmail: cachedCompanyProfile.email,
             title: title, salary: salary, vacancy: parseInt(vacancy), desc: desc,
+            city: city, state: state, location: `${city}, ${state}`,
             status: 'Pending Review', postedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -493,30 +516,54 @@
             if(cachedCompanyProfile.planType === 'per_post' && cachedCompanyProfile.role !== 'admin') {
                 db.collection('companies').doc(currentCompany).update({ jobCredits: firebase.firestore.FieldValue.increment(-1) });
             }
-            hideLoader(); alert("Job entry pushed to authorization queue."); nav('my-jobs');
+            hideLoader(); 
+            alert("Job entry successfully pushed to authorization queue."); 
+            nav('my-jobs');
             document.getElementById('j-title').value = ''; document.getElementById('j-salary').value = '';
             document.getElementById('j-vacancy').value = ''; document.getElementById('j-desc').value = '';
+            document.getElementById('j-city').value = ''; document.getElementById('j-state').value = '';
         }).catch(e => { hideLoader(); alert(e.message); });
     }
 
     function loadMyJobs() {
+        // MY JOBS VISIBILITY & CANDIDATE COUNT FIX
         db.collection('jobs').where('companyId', '==', currentCompany).onSnapshot(snap => {
             const container = document.getElementById('job-list');
             container.innerHTML = '';
-            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:14px;">No posts available.</p>'; return; }
+            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:14px;">No posts available yet.</p>'; return; }
+            
             snap.forEach(doc => {
                 const j = doc.data();
+                const jobId = doc.id;
                 const statusBadge = j.status === 'Approved' ? 'badge-approved' : (j.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
-                container.innerHTML += `<div class="card"><div style="display:flex; justify-content:between; width:100%;">
-                        <div style="flex:1;"><h3>${j.title}</h3><p style="font-size:13px; color:var(--text-light); margin:4px 0 12px 0;">Vacancy: ${j.vacancy} | ${j.salary}</p><span class="badge ${statusBadge}">${j.status}</span></div>
-                        <div><button class="btn btn-outline" style="min-height:38px; padding:6px 12px; font-size:12px;" onclick="triggerJobDelete('${doc.id}')"><i class="fa-solid fa-trash-can"></i></button></div>
+                
+                // Injecting HTML with ID for the applicant count
+                container.innerHTML += `<div class="card">
+                    <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+                        <div style="flex:1;">
+                            <h3 style="margin-bottom:5px;">${j.title}</h3>
+                            <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">
+                                📍 <b>${j.city || 'Location N/A'}, ${j.state || 'N/A'}</b> | Vacancy: ${j.vacancy} | ${j.salary}
+                            </p>
+                            <span class="badge ${statusBadge}">${j.status}</span>
+                            <span class="badge badge-count" id="count-${jobId}" style="margin-left:8px;">👥 Applicants: Loading...</span>
+                        </div>
+                        <div><button class="btn btn-outline" style="min-height:38px; padding:6px 12px; font-size:12px;" onclick="triggerJobDelete('${jobId}')"><i class="fa-solid fa-trash-can"></i></button></div>
                     </div></div>`;
+                    
+                // Fetching Live Applicant Count for this specific job
+                db.collection('applications').where('jobId', '==', jobId).onSnapshot(appSnap => {
+                    const countBadge = document.getElementById(`count-${jobId}`);
+                    if(countBadge) {
+                        countBadge.innerText = `👥 Applicants: ${appSnap.size}`;
+                    }
+                });
             });
         });
     }
 
     function triggerJobDelete(jobId) {
-        if(confirm("Confirm destructive wipe?")) {
+        if(confirm("Confirm destructive wipe of this job?")) {
             showLoader(); db.collection('jobs').doc(jobId).delete().then(() => hideLoader()).catch(e => hideLoader());
         }
     }
@@ -525,17 +572,22 @@
         db.collection('applications').where('companyId', '==', currentCompany).onSnapshot(snap => {
             const container = document.getElementById('applicant-list');
             container.innerHTML = '';
-            if(snap.empty) return;
+            if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light); font-size:14px;">No candidates applied yet.</p>'; return; }
+            
             snap.forEach(doc => {
                 const a = doc.data();
                 container.innerHTML += `<div class="card">
-                    <h3 style="font-size:16px;">Job: ${a.jobTitle}</h3><p style="font-size:13px; color:var(--text-light); margin:4px 0 14px 0;">Email: ${a.candidateEmail}</p>
+                    <h3 style="font-size:16px;">Job Target: ${a.jobTitle || 'Unknown Job'}</h3>
+                    <p style="font-size:13px; color:var(--text-light); margin:4px 0 14px 0;">Candidate: ${a.candidateEmail || 'N/A'}</p>
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <button class="btn btn-primary" style="padding:8px 16px; font-size:13px;" onclick="viewCandidateProfile('${a.candidateId}', '${a.postedAt ? a.postedAt.toDate().toLocaleDateString() : '-'}')">Inspect</button>
-                        <select onchange="updateApplicationStatus('${doc.id}', this.value)" style="width:auto; padding:0 10px; font-size:13px;">
-                            <option value="" disabled selected>Update Status</option><option value="Shortlisted">Shortlist</option><option value="Interview Scheduled">Schedule</option><option value="Rejected">Reject</option>
+                        <button class="btn btn-primary" style="padding:8px 16px; font-size:13px;" onclick="viewCandidateProfile('${a.candidateId}', '${a.postedAt ? a.postedAt.toDate().toLocaleDateString() : '-'}')"><i class="fa-solid fa-eye"></i> View Full CV</button>
+                        <select onchange="updateApplicationStatus('${doc.id}', this.value)" style="width:auto; padding:0 10px; font-size:13px; border-radius:8px;">
+                            <option value="" disabled selected>Update Status</option>
+                            <option value="Shortlisted">Shortlist</option>
+                            <option value="Interview Scheduled">Schedule</option>
+                            <option value="Rejected">Reject</option>
                         </select>
-                        <span class="badge badge-pending">${a.status || 'Active'}</span>
+                        <span class="badge badge-pending">${a.status || 'Active Evaluation'}</span>
                     </div></div>`;
             });
         });
@@ -548,28 +600,44 @@
 
     function viewCandidateProfile(candId, dateApplied) {
         showLoader();
+        // CANDIDATE DETAIL FIX: Fetching accurately and preventing 'undefined' bugs
         db.collection('candidates').doc(candId).get().then(doc => {
             hideLoader();
             if(doc.exists) {
                 const c = doc.data();
-                document.getElementById('m-display-name').innerText = c.name || 'Anonymous';
-                document.getElementById('m-mobile').innerText = c.mobile || '-';
-                document.getElementById('m-email').innerText = c.email || '-';
-                document.getElementById('m-exp').innerText = c.experience || '0';
+                document.getElementById('m-display-name').innerText = c.name || c.fullName || 'Anonymous Candidate';
+                document.getElementById('m-mobile').innerText = c.mobile || c.phone || 'Not Provided';
+                document.getElementById('m-email').innerText = c.email || 'Not Provided';
+                document.getElementById('m-exp').innerText = c.experience ? `${c.experience} Years` : 'Fresher / 0';
                 document.getElementById('m-date').innerText = dateApplied;
-                document.getElementById('m-skills').innerText = c.skills || '-';
-                document.getElementById('m-bio').innerText = c.bio || '-';
+                document.getElementById('m-skills').innerText = c.skills || 'General';
+                document.getElementById('m-bio').innerText = c.bio || c.about || 'No description provided by candidate.';
                 
+                // Resume Link Processing
                 const resumeBtn = document.getElementById('m-resume-link');
-                if(c.resumeLink) { resumeBtn.href = c.resumeLink; resumeBtn.style.display = 'inline-flex'; } else { resumeBtn.style.display = 'none'; }
+                const finalResumeLink = c.resumeLink || c.resumeUrl || c.cvLink;
+                
+                if(finalResumeLink) { 
+                    resumeBtn.href = finalResumeLink; 
+                    resumeBtn.style.display = 'inline-flex'; 
+                } else { 
+                    resumeBtn.style.display = 'none'; 
+                }
+                
                 document.getElementById('candidate-modal').style.display = 'flex';
+            } else {
+                alert("Candidate profile data could not be located in database.");
             }
-        }).catch(e => hideLoader());
+        }).catch(e => { hideLoader(); alert("Error fetching data: " + e.message); });
     }
 
     function updateDashboardStatsCounters() {
-        db.collection('jobs').where('companyId', '==', currentCompany).get().then(snap => document.getElementById('stat-total-jobs').innerText = snap.size);
-        db.collection('applications').where('companyId', '==', currentCompany).get().then(snap => document.getElementById('stat-total-apps').innerText = snap.size);
+        db.collection('jobs').where('companyId', '==', currentCompany).get().then(snap => {
+            document.getElementById('stat-total-jobs').innerText = snap.size;
+        });
+        db.collection('applications').where('companyId', '==', currentCompany).get().then(snap => {
+            document.getElementById('stat-total-apps').innerText = snap.size;
+        });
     }
 
     // Modal Display Logic
@@ -589,15 +657,12 @@
         const companyNameEncoded = encodeURIComponent(cachedCompanyProfile.companyName || 'SwipeJobs Company');
         const upiURL = `upi://pay?pa=${UPI_ID}&pn=${companyNameEncoded}&am=${amount}&cu=INR`;
         
-        // Show Step 2
         document.getElementById('payment-step-1').style.display = 'none';
         document.getElementById('payment-step-2').style.display = 'block';
         document.getElementById('display-amount').innerText = `₹${amount}`;
         
-        // Update Link for Mobile
         document.getElementById('mobile-upi-link').href = upiURL;
         
-        // Update QR Code for PC
         const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiURL)}`;
         document.getElementById('upi-qr-image').src = qrApi;
     }
@@ -618,10 +683,10 @@
             }
             db.collection('companies').doc(currentCompany).update(updateBlock).then(() => {
                 closeModal('payment-modal'); hideLoader();
-                btn.innerText = "I Have Paid, Verify Now"; // reset for future
+                btn.innerText = "I Have Paid, Verify Now";
                 alert("UPI Transaction Captured Successfully! Your plan has been upgraded.");
             }).catch(e => hideLoader());
-        }, 1500); // Simulate API call wait
+        }, 1500); 
     }
 
     // Admin Interface System
@@ -647,8 +712,14 @@
             });
         });
     }
-    function adminModifyCompanyPlan(cId, type) { db.collection('companies').doc(cId).update(type==='per_post'?{planType:type, jobCredits:firebase.firestore.FieldValue.increment(10)}:{planType:type}); }
-    function adminSetJobStatus(jId, stat) { db.collection('jobs').doc(jId).update({ status: stat }); }
+    
+    function adminModifyCompanyPlan(cId, type) { 
+        db.collection('companies').doc(cId).update(type==='per_post'?{planType:type, jobCredits:firebase.firestore.FieldValue.increment(10)}:{planType:type}); 
+    }
+    
+    function adminSetJobStatus(jId, stat) { 
+        db.collection('jobs').doc(jId).update({ status: stat }); 
+    }
 </script>
 </body>
 </html>
