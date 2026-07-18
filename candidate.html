@@ -111,37 +111,6 @@
         </div>
     </div>
 
-    <!-- NEW GUEST PREVIEW SCREEN (Auto Triggers on Shared Link) -->
-    <div id="guest-screen" class="screen">
-        <h2 style="text-align: center; color: var(--primary); margin-bottom: 20px; font-size: 28px;">SwipeJobs Preview</h2>
-        
-        <div class="card" style="position: relative; width: 100%; height: auto; max-width: 500px; margin: 0 auto; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); cursor: default;">
-            <div class="company-header">
-                <div class="company-logo" id="g-logo">L</div>
-                <div>
-                    <h2 id="g-company" class="company-name" style="font-size: 20px;">Company Name</h2>
-                    <p id="g-location" style="font-size: 14px; color: var(--text-light);">Location</p>
-                </div>
-            </div>
-            
-            <h3 id="g-title" class="job-title" style="margin-top: 15px; margin-bottom: 10px;">Job Title</h3>
-            <hr style="border: 0.5px solid #eee; margin-bottom: 15px;">
-            
-            <p style="margin-bottom: 8px;"><strong>💼 Salary:</strong> <span id="g-salary"></span></p>
-            <p style="margin-bottom: 15px;"><strong>👥 Vacancies:</strong> <span id="g-vacancy"></span></p>
-            
-            <h4 style="margin-bottom: 5px;">Job Description:</h4>
-            <p id="g-desc" style="font-size: 14px; color: var(--text-light); line-height: 1.5; margin-bottom: 25px;"></p>
-            
-            <div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; border: 1px solid #ffeeba;">
-                ⚠️ You must be logged in to apply. Employer contact details are strictly hidden until you apply.
-            </div>
-            
-            <button class="btn-apply" style="width: 100%; font-size: 16px;" onclick="goToLoginFromGuest()">Login & Apply Now</button>
-            <button style="width: 100%; background: #eee; color: #333; margin-top: 10px;" onclick="goToHomeFromGuest()">Go to Home Page</button>
-        </div>
-    </div>
-
     <!-- Auth Screen -->
     <div id="auth-screen" class="screen active">
         <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 32px;">SwipeJobs</h2>
@@ -177,6 +146,7 @@
             
             <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block;">Upload Resume (PDF)</label>
             <input type="file" id="reg-resume-file" accept="application/pdf" style="padding: 5px;">
+            
             <textarea id="reg-bio" placeholder="Skills & Bio *" rows="2"></textarea>
             
             <button id="reg-btn" onclick="registerNewCandidate()">Register & Enter App</button>
@@ -268,10 +238,12 @@
 </div>
 
 <script>
+    // --- Dark Mode Initialization (Runs on Load) ---
     if (localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark-mode');
     }
 
+    // --- Firebase Initialization ---
     const firebaseConfig = {
         apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
         authDomain: "swipejobs-a5317.firebaseapp.com",
@@ -294,10 +266,15 @@
     let userCity = "";
     let lastRejectedJob = null; 
 
-    // Capture shared URL parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    let sharedJobId = urlParams.get('id');
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                console.log("Lat:", pos.coords.latitude, "Lng:", pos.coords.longitude);
+            });
+        }
+    }
 
+    // --- Persistent Theme Toggle ---
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
         const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
@@ -307,6 +284,7 @@
     function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
     function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
 
+    // --- Navigation ---
     function switchTab(tab) {
         if(window.innerWidth >= 1024) {
             document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
@@ -332,99 +310,22 @@
         renderJobs(); 
     }
 
-    function getUserLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                console.log("Lat:", pos.coords.latitude, "Lng:", pos.coords.longitude);
-            });
-        }
-    }
-
-    function showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
-        if(screenId === 'main-screen' && window.innerWidth < 1024) {
-            document.getElementById('mobile-top-header').style.display = 'flex';
-        } else {
-            document.getElementById('mobile-top-header').style.display = 'none';
-        }
-    }
-
-    // --- SHARED LINK GUEST LOGIC ---
-    async function loadGuestPreview(jobId) {
-        showScreen('guest-screen');
-        try {
-            const doc = await db.collection('jobs').doc(jobId).get();
-            if(doc.exists) {
-                const j = doc.data();
-                const compName = j.companyName || 'Top Company';
-                
-                document.getElementById('g-company').innerText = compName;
-                document.getElementById('g-logo').innerText = compName.substring(0,1).toUpperCase();
-                document.getElementById('g-location').innerText = j.city ? `${j.city}, ${j.state}` : (j.location || "India");
-                document.getElementById('g-title').innerText = j.title;
-                document.getElementById('g-vacancy').innerText = j.vacancy;
-                document.getElementById('g-salary').innerText = j.salary;
-                document.getElementById('g-desc').innerText = j.desc || "No description provided.";
-            } else {
-                alert("This job post has expired or is no longer available.");
-                showScreen('auth-screen');
-            }
-        } catch(e) {
-            console.error("Error fetching guest job:", e);
-            showScreen('auth-screen');
-        }
-    }
-
-    function goToLoginFromGuest() { showScreen('auth-screen'); }
-    function goToHomeFromGuest() {
-        sharedJobId = null; // Purge intent
-        showScreen('auth-screen');
-        history.pushState({}, document.title, window.location.pathname); // Clean URL
-    }
-
-    // --- AUTH STATE TRACKING ---
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            currentUser = user;
-            showScreen('main-screen');
-            getUserLocation();
-            
-            const doc = await db.collection('candidates').doc(user.uid).get();
-            if(doc.exists) {
-                candidateData = doc.data();
-                userCity = candidateData.city ? candidateData.city.toLowerCase() : "";
-            }
-            
-            fetchLiveJobs();
-            loadAppliedJobs();
-            
-            // Check if user came from a shared link, open that specific job directly!
-            if(sharedJobId) {
-                setTimeout(() => openJobModalById(sharedJobId), 1000); // Small delay for UI load
-                history.pushState({}, document.title, window.location.pathname); // Clean URL
-                sharedJobId = null; 
-            } else if(window.innerWidth >= 1024) {
-                switchTab('applied');
-            }
-        } else {
-            // Not logged in -> Determine where to route them
-            if (sharedJobId) {
-                loadGuestPreview(sharedJobId);
-            } else {
-                showScreen('auth-screen');
-            }
-        }
-    });
-
+    // --- Auth ---
     async function registerNewCandidate() {
-        const email = document.getElementById('reg-email').value; const pass = document.getElementById('reg-pass').value;
-        const name = document.getElementById('reg-name').value; const mobile = document.getElementById('reg-mobile').value;
-        const city = document.getElementById('reg-city').value; const state = document.getElementById('reg-state').value;
-        const education = document.getElementById('reg-education').value; const work = document.getElementById('reg-work').value;
-        const bio = document.getElementById('reg-bio').value; const fileInput = document.getElementById('reg-resume-file');
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        const name = document.getElementById('reg-name').value;
+        const mobile = document.getElementById('reg-mobile').value;
+        const city = document.getElementById('reg-city').value;
+        const state = document.getElementById('reg-state').value;
+        const education = document.getElementById('reg-education').value;
+        const work = document.getElementById('reg-work').value;
+        const bio = document.getElementById('reg-bio').value;
+        const fileInput = document.getElementById('reg-resume-file');
 
-        if(!email || !pass || !name || !mobile || !city) { alert("Please fill all mandatory fields!"); return; }
+        if(!email || !pass || !name || !mobile || !city) {
+            alert("Please fill all mandatory fields!"); return;
+        }
 
         document.getElementById('reg-btn').innerText = "Uploading & Registering...";
 
@@ -440,27 +341,66 @@
                 resumeUrl = await snapshot.ref.getDownloadURL();
             }
 
-            const newCandidateData = { name, email, mobile, city, state, education, workHistory: work, bio, resumeUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+            const newCandidateData = {
+                name, email, mobile, city, state, education, 
+                workHistory: work, bio, resumeUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
             await db.collection('candidates').doc(uid).set(newCandidateData);
             
             alert("Account & Detailed Profile Created Successfully!");
             closeRegisterModal();
             document.getElementById('reg-btn').innerText = "Register & Enter App";
         } catch(err) {
-            alert(err.message); document.getElementById('reg-btn').innerText = "Register & Enter App";
+            alert(err.message);
+            document.getElementById('reg-btn').innerText = "Register & Enter App";
         }
     }
 
     function login() {
-        const email = document.getElementById('login-email').value; const pass = document.getElementById('login-pass').value;
+        const email = document.getElementById('login-email').value;
+        const pass = document.getElementById('login-pass').value;
         auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
     }
 
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            currentUser = user;
+            showScreen('main-screen');
+            getUserLocation();
+            
+            const doc = await db.collection('candidates').doc(user.uid).get();
+            if(doc.exists) {
+                candidateData = doc.data();
+                userCity = candidateData.city ? candidateData.city.toLowerCase() : "";
+            }
+            
+            fetchLiveJobs();
+            loadAppliedJobs();
+            
+            if(window.innerWidth >= 1024) switchTab('applied');
+        } else {
+            showScreen('auth-screen');
+        }
+    });
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if(screenId === 'main-screen' && window.innerWidth < 1024) {
+            document.getElementById('mobile-top-header').style.display = 'flex';
+        } else {
+            document.getElementById('mobile-top-header').style.display = 'none';
+        }
+    }
+
+    // --- Job Loading & Rendering ---
     function fetchLiveJobs() {
         db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
             allJobs = [];
             snap.forEach(doc => {
-                let jobData = doc.data(); jobData.id = doc.id;
+                let jobData = doc.data();
+                jobData.id = doc.id;
                 jobData.applyCount = jobData.applyCount || Math.floor(Math.random() * 50) + 1; 
                 allJobs.push(jobData);
             });
@@ -469,38 +409,53 @@
     }
 
     function renderJobs() {
-        const swipeArea = document.getElementById('swipe-area'); swipeArea.innerHTML = ''; 
+        const swipeArea = document.getElementById('swipe-area');
+        swipeArea.innerHTML = ''; 
+        
         let filteredJobs = allJobs;
         
-        if (currentTabFilter === 'nearby' && userCity) { filteredJobs = allJobs.filter(job => (job.city && job.city.toLowerCase().includes(userCity)) || (job.location && job.location.toLowerCase().includes(userCity))); }
+        if (currentTabFilter === 'nearby' && userCity) {
+            filteredJobs = allJobs.filter(job => job.location && job.location.toLowerCase().includes(userCity));
+        }
 
         const searchQuery = document.getElementById('search-box') ? document.getElementById('search-box').value.toLowerCase() : "";
-        if (searchQuery) { filteredJobs = filteredJobs.filter(job => job.title.toLowerCase().includes(searchQuery) || (job.companyName && job.companyName.toLowerCase().includes(searchQuery))); }
+        if (searchQuery) {
+            filteredJobs = filteredJobs.filter(job => job.title.toLowerCase().includes(searchQuery) || (job.companyName && job.companyName.toLowerCase().includes(searchQuery)));
+        }
 
         if(filteredJobs.length === 0) {
-            swipeArea.innerHTML = '<p style="color:var(--text-light);">No jobs found matching your criteria.</p>'; return;
+            swipeArea.innerHTML = '<p style="color:var(--text-light);">No jobs found matching your criteria.</p>';
+            return;
         }
 
         for (let i = filteredJobs.length - 1; i >= 0; i--) {
             const job = filteredJobs[i];
-            const card = document.createElement('div'); card.className = 'card'; card.id = 'card-' + job.id;
-            card.style.transform = `scale(${1 - i*0.05}) translateY(${i*10}px)`; card.style.zIndex = filteredJobs.length - i;
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = 'card-' + job.id;
+            card.style.transform = `scale(${1 - i*0.05}) translateY(${i*10}px)`;
+            card.style.zIndex = filteredJobs.length - i;
             
-            const compName = job.companyName || 'Company';
-            const jobLoc = job.city ? `${job.city}, ${job.state}` : (job.location || "Not Specified");
+            const compName = job.companyName || (job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'Company');
+            const jobLoc = job.location || "Not Specified";
 
             card.innerHTML = `
                 <div onclick="openJobModal('${job.id}')" style="flex:1; cursor:pointer;">
                     <div class="company-header">
-                        <div class="company-logo">${compName.substring(0,1).toUpperCase()}</div>
-                        <div><div class="company-name">${compName}</div><div style="font-size:12px; color:var(--text-light);">${jobLoc}</div></div>
+                        <div class="company-logo">${compName.substring(0,1)}</div>
+                        <div>
+                            <div class="company-name">${compName}</div>
+                            <div style="font-size:12px; color:var(--text-light);">${jobLoc}</div>
+                        </div>
                     </div>
                     <div class="job-title">${job.title}</div>
                     <div class="job-details">💰 Salary: ${job.salary}</div>
                     <div class="job-details">👥 Vacancies: ${job.vacancy}</div>
                     <p style="margin-top:20px; color:var(--text-light); font-size:12px;">(Tap card to see Full Details & Description)</p>
                 </div>
+                
                 <button class="report-btn" onclick="reportJob('${job.id}', event)">⚠️</button>
+
                 <div class="card-actions">
                     <button class="btn-reject" onclick="swipeCard('${job.id}', 'left')">✖ Reject</button>
                     <button class="btn-apply" onclick="swipeCard('${job.id}', 'right')">✔ Apply</button>
@@ -512,100 +467,214 @@
         }
     }
 
-    function filterJobsBySearch() { renderJobs(); }
+    function filterJobsBySearch() {
+        renderJobs();
+    }
 
+    // --- Drag/Swipe Interactions ---
     function attachSwipeEvents(card, jobId) {
         let startX = 0, currentX = 0, isDragging = false;
-        const startDrag = (e) => { startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX; isDragging = true; card.style.transition = 'none'; };
-        const moveDrag = (e) => { if (!isDragging) return; const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX; currentX = x - startX; const rotate = currentX * 0.05; const index = allJobs.length - parseInt(card.style.zIndex); const scale = 1 - index * 0.05; card.style.transform = `translate(${currentX}px, ${index*10}px) scale(${scale}) rotate(${rotate}deg)`; };
+
+        const startDrag = (e) => {
+            startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            isDragging = true;
+            card.style.transition = 'none';
+        };
+
+        const moveDrag = (e) => {
+            if (!isDragging) return;
+            const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            currentX = x - startX;
+            const rotate = currentX * 0.05;
+            const zIndexStr = card.style.zIndex;
+            const index = allJobs.length - parseInt(zIndexStr);
+            const scale = 1 - index * 0.05;
+            card.style.transform = `translate(${currentX}px, ${index*10}px) scale(${scale}) rotate(${rotate}deg)`;
+        };
+
         const endDrag = (e) => {
-            if (!isDragging) return; isDragging = false; card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-            if (currentX > 100) { swipeCard(jobId, 'right'); } else if (currentX < -100) { swipeCard(jobId, 'left'); } else { const index = allJobs.length - parseInt(card.style.zIndex); const scale = 1 - index * 0.05; card.style.transform = `scale(${scale}) translateY(${index*10}px)`; }
+            if (!isDragging) return;
+            isDragging = false;
+            card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            
+            if (currentX > 100) {
+                swipeCard(jobId, 'right');
+            } else if (currentX < -100) {
+                swipeCard(jobId, 'left');
+            } else {
+                const zIndexStr = card.style.zIndex;
+                const index = allJobs.length - parseInt(zIndexStr);
+                const scale = 1 - index * 0.05;
+                card.style.transform = `scale(${scale}) translateY(${index*10}px)`;
+            }
             currentX = 0;
         };
 
-        card.addEventListener('touchstart', startDrag); card.addEventListener('touchmove', moveDrag); card.addEventListener('touchend', endDrag);
-        card.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', moveDrag); window.addEventListener('mouseup', endDrag);
+        card.addEventListener('touchstart', startDrag);
+        card.addEventListener('touchmove', moveDrag);
+        card.addEventListener('touchend', endDrag);
+        
+        card.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', moveDrag);
+        window.addEventListener('mouseup', endDrag);
     }
 
     function swipeCard(jobId, direction) {
         const card = document.getElementById('card-' + jobId);
-        if(card) {
-            if (direction === 'right') {
-                card.style.transform = `translateX(150%) rotate(30deg)`; card.style.opacity = '0';
-                setTimeout(() => { card.remove(); allJobs = allJobs.filter(j => j.id !== jobId); applyForJob(jobId); }, 300);
-            } else {
-                card.style.transform = `translateX(-150%) rotate(-30deg)`; lastRejectedJob = jobId; showUndoBtn(); card.style.opacity = '0';
-                setTimeout(() => { card.remove(); allJobs = allJobs.filter(j => j.id !== jobId); renderJobs(); }, 300);
-            }
+        if (!card) return;
+        
+        if (direction === 'right') {
+            card.style.transform = `translateX(150%) rotate(30deg)`;
+            card.style.opacity = '0';
+            setTimeout(() => { 
+                card.remove(); 
+                allJobs = allJobs.filter(j => j.id !== jobId);
+                applyForJob(jobId);
+            }, 300);
         } else {
-            // Direct array apply if card wasn't rendered
-            if(direction === 'right') applyForJob(jobId);
+            card.style.transform = `translateX(-150%) rotate(-30deg)`;
+            lastRejectedJob = jobId;
+            showUndoBtn();
+            card.style.opacity = '0';
+            setTimeout(() => { 
+                card.remove(); 
+                allJobs = allJobs.filter(j => j.id !== jobId);
+                renderJobs(); 
+            }, 300);
         }
     }
 
-    function showUndoBtn() { const btn = document.getElementById('undo-btn'); btn.style.display = 'block'; setTimeout(() => { btn.style.display = 'none'; }, 3000); }
-    function undoSwipe() { if(!lastRejectedJob) return; document.getElementById('undo-btn').style.display = 'none'; fetchLiveJobs(); }
+    function showUndoBtn() {
+        const btn = document.getElementById('undo-btn');
+        btn.style.display = 'block';
+        setTimeout(() => { btn.style.display = 'none'; }, 3000);
+    }
 
+    function undoSwipe() {
+        if(!lastRejectedJob) return;
+        document.getElementById('undo-btn').style.display = 'none';
+        fetchLiveJobs(); 
+    }
+
+    // --- Advanced Application Logic (With Cooldown Check) ---
     async function applyForJob(jobId) {
+        const job = allJobs.find(j => j.id === jobId) || { id: jobId }; 
         if(!currentUser) return;
+
         try {
+            // 1. Check Previous Applications for this Candidate & Job
             const appsRef = db.collection('applications');
-            const snapshot = await appsRef.where('candidateId', '==', currentUser.uid).where('jobId', '==', jobId).get();
+            const snapshot = await appsRef.where('candidateId', '==', currentUser.uid)
+                                          .where('jobId', '==', jobId)
+                                          .get();
 
             if (!snapshot.empty) {
-                if (snapshot.size >= 2) { alert("Aap is job ke liye max (2 baar) apply kar chuke hain. Limit poori ho chuki hai."); fetchLiveJobs(); return; }
+                // If applied 2 or more times
+                if (snapshot.size >= 2) {
+                    alert("Aap is job ke liye max (2 baar) apply kar chuke hain. Limit poori ho chuki hai.");
+                    fetchLiveJobs(); // Bring card back for UI reset
+                    return;
+                }
+                
+                // If applied exactly 1 time, check 24 hour cooldown
                 const existingApp = snapshot.docs[0].data();
                 const appliedAt = existingApp.appliedAt ? existingApp.appliedAt.toDate() : new Date();
-                const diffHours = Math.abs(new Date() - appliedAt) / 36e5;
-                if (diffHours < 24) { alert(`Aapne pehle hi apply kiya hai. Dobara apply karne ke liye ${Math.ceil(24 - diffHours)} ghante wait karein.`); fetchLiveJobs(); return; }
+                const now = new Date();
+                const diffHours = Math.abs(now - appliedAt) / 36e5;
+                
+                if (diffHours < 24) {
+                    const hoursLeft = Math.ceil(24 - diffHours);
+                    alert(`Aapne pehle hi apply kiya hai. Dobara apply karne ke liye ${hoursLeft} ghante wait karein.`);
+                    fetchLiveJobs(); // Bring card back
+                    return;
+                }
             }
 
+            // 2. Proceed with Application
+            // Re-fetch job object if we relied on the fallback
             const actualJob = allJobs.find(j => j.id === jobId) || await db.collection('jobs').doc(jobId).get().then(doc => ({...doc.data(), id: doc.id}));
-            const compName = actualJob.companyName || 'Company';
+            
+            const compName = actualJob.companyName || (actualJob.companyEmail ? actualJob.companyEmail.split('@')[0] : 'Company');
 
             const applicationData = {
-                candidateId: currentUser.uid, candidateEmail: candidateData.email || currentUser.email,
-                companyId: actualJob.companyId || 'UNKNOWN', jobId: jobId, companyName: compName,
-                jobTitle: actualJob.title || 'Job Title', status: 'Applied', candidateData: candidateData, 
+                candidateId: currentUser.uid,
+                companyId: actualJob.companyId || 'UNKNOWN',
+                jobId: jobId,
+                companyName: compName,
+                jobTitle: actualJob.title || 'Job Title',
+                status: 'Applied',
+                candidateData: candidateData, 
                 appliedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('applications').add(applicationData);
             document.getElementById('notif-badge').style.display = 'block'; 
             
-            alert(`Application sent successfully to ${compName}!`);
-            renderJobs(); 
-        } catch (error) { console.error("Error applying: ", error); }
+            renderJobs(); // Finally update view
+
+        } catch (error) {
+            console.error("Error applying: ", error);
+        }
     }
 
     function loadAppliedJobs() {
         if(!currentUser) return;
-        db.collection('applications').where('candidateId', '==', currentUser.uid).onSnapshot(snapshot => {
-            const list = document.getElementById('applied-list'); list.innerHTML = '';
+        db.collection('applications').where('candidateId', '==', currentUser.uid)
+          .onSnapshot(snapshot => {
+            const list = document.getElementById('applied-list');
+            list.innerHTML = '';
             snapshot.forEach(doc => {
-                const data = doc.data(); const safeCompName = data.companyName ? data.companyName.toUpperCase() : 'UNKNOWN';
-                list.innerHTML += `<div class="applied-item"><div class="company-name" style="font-size:16px;">${safeCompName}</div>
-                    <div class="job-title" style="font-size:14px; margin-bottom: 5px;">${data.jobTitle}</div>
-                    <div class="status-badge" style="background: ${data.status.includes('Selected') ? '#d4edda' : (data.status.includes('Reject') ? '#f8d7da' : '#e2e3e5')}; color: ${data.status.includes('Selected') ? '#155724' : (data.status.includes('Reject') ? '#721c24' : '#383d41')};">
-                    ${data.status}</div></div>`;
+                const data = doc.data();
+                const safeCompName = data.companyName ? data.companyName.toUpperCase() : 'UNKNOWN';
+                list.innerHTML += `
+                    <div class="applied-item">
+                        <div class="company-name" style="font-size:16px;">${safeCompName}</div>
+                        <div class="job-title" style="font-size:14px; margin-bottom: 5px;">${data.jobTitle}</div>
+                        <div class="status-badge" style="background: ${data.status.includes('Selected') ? '#d4edda' : (data.status.includes('Reject') ? '#f8d7da' : '#e2e3e5')}; color: ${data.status.includes('Selected') ? '#155724' : (data.status.includes('Reject') ? '#721c24' : '#383d41')};">
+                            ${data.status}
+                        </div>
+                    </div>
+                `;
             });
             document.getElementById('notif-badge').style.display = 'none'; 
         });
     }
 
+    // --- Profile Editing ---
     function loadUserProfile() {
         if(!candidateData) return;
         const container = document.getElementById('profile-details-container');
+        
         container.innerHTML = `
             <div class="applied-item">
-                <label class="profile-label">Full Name</label><input type="text" id="edit-name" value="${candidateData.name || ''}">
-                <label class="profile-label">Mobile Number</label><input type="text" id="edit-mobile" value="${candidateData.mobile || ''}">
-                <div style="display:flex; gap:10px;"><div style="width:50%;"><label class="profile-label">City</label><input type="text" id="edit-city" value="${candidateData.city || ''}"></div><div style="width:50%;"><label class="profile-label">State</label><input type="text" id="edit-state" value="${candidateData.state || ''}"></div></div>
-                <label class="profile-label">Highest Education</label><input type="text" id="edit-education" value="${candidateData.education || ''}">
-                <label class="profile-label">Work Experience</label><textarea id="edit-work" rows="3">${candidateData.workHistory || ''}</textarea>
-                <label class="profile-label">Skills & Bio</label><textarea id="edit-bio" rows="3">${candidateData.bio || ''}</textarea>
+                <label class="profile-label">Full Name</label>
+                <input type="text" id="edit-name" value="${candidateData.name || ''}" placeholder="Full Name">
+                
+                <label class="profile-label">Mobile Number</label>
+                <input type="text" id="edit-mobile" value="${candidateData.mobile || ''}" placeholder="Mobile Number">
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="width:50%;">
+                        <label class="profile-label">City</label>
+                        <input type="text" id="edit-city" value="${candidateData.city || ''}" placeholder="City">
+                    </div>
+                    <div style="width:50%;">
+                        <label class="profile-label">State</label>
+                        <input type="text" id="edit-state" value="${candidateData.state || ''}" placeholder="State">
+                    </div>
+                </div>
+
+                <label class="profile-label">Highest Education</label>
+                <input type="text" id="edit-education" value="${candidateData.education || ''}" placeholder="Highest Education">
+                
+                <label class="profile-label">Work Experience</label>
+                <textarea id="edit-work" placeholder="Work History (Past companies, years)" rows="3">${candidateData.workHistory || ''}</textarea>
+                
+                <label class="profile-label">Skills & Bio</label>
+                <textarea id="edit-bio" placeholder="Skills & Bio" rows="3">${candidateData.bio || ''}</textarea>
+                
                 ${candidateData.resumeUrl ? `<a href="${candidateData.resumeUrl}" target="_blank" style="color:var(--primary); font-weight:bold; display:block; margin-bottom:15px; text-decoration:none;">📄 View Current Uploaded PDF</a>` : ''}
+                
                 <button onclick="updateProfileData()">Save & Update Profile</button>
             </div>
         `;
@@ -613,70 +682,128 @@
 
     async function updateProfileData() {
         if(!currentUser) return;
-        const updatedData = { name: document.getElementById('edit-name').value, mobile: document.getElementById('edit-mobile').value, city: document.getElementById('edit-city').value, state: document.getElementById('edit-state').value, education: document.getElementById('edit-education').value, workHistory: document.getElementById('edit-work').value, bio: document.getElementById('edit-bio').value };
-        try { await db.collection('candidates').doc(currentUser.uid).update(updatedData); candidateData = { ...candidateData, ...updatedData }; alert("Profile Updated Successfully!"); } catch (error) { alert("Error: " + error.message); }
+        
+        const updatedData = {
+            name: document.getElementById('edit-name').value,
+            mobile: document.getElementById('edit-mobile').value,
+            city: document.getElementById('edit-city').value,
+            state: document.getElementById('edit-state').value,
+            education: document.getElementById('edit-education').value,
+            workHistory: document.getElementById('edit-work').value,
+            bio: document.getElementById('edit-bio').value
+        };
+
+        try {
+            await db.collection('candidates').doc(currentUser.uid).update(updatedData);
+            candidateData = { ...candidateData, ...updatedData };
+            alert("Profile Updated Successfully!");
+        } catch (error) {
+            alert("Error updating profile: " + error.message);
+        }
     }
 
+    // --- PDF Generation ---
     function generatePDF() {
         if(!candidateData) { alert("Profile data loading, try again."); return; }
-        const element = document.createElement('div'); element.style.padding = '40px'; element.style.fontFamily = 'Arial, sans-serif'; element.style.color = '#333'; element.style.position = 'relative'; 
-        const watermark = document.createElement('div'); watermark.innerText = 'SwipeJobs'; watermark.style.position = 'absolute'; watermark.style.top = '50%'; watermark.style.left = '50%'; watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)'; watermark.style.fontSize = '80px'; watermark.style.fontWeight = 'bold'; watermark.style.color = 'rgba(0, 0, 0, 0.08)'; watermark.style.zIndex = '0'; watermark.style.pointerEvents = 'none';
-        const content = document.createElement('div'); content.style.position = 'relative'; content.style.zIndex = '1'; content.innerHTML = `<h1 style="color:#ff4b4b; font-size:32px; margin-bottom: 5px;">${candidateData.name || 'Candidate'}</h1><p style="font-size: 16px; color: #555;">Email: ${candidateData.email || 'N/A'} | Mobile: ${candidateData.mobile || 'N/A'}</p><p style="font-size: 16px; color: #555;">Location: ${candidateData.city || 'N/A'}, ${candidateData.state || 'N/A'}</p><hr style="margin: 25px 0; border: 0.5px solid #ccc;"><h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Education</h3><p style="font-size:16px; margin-bottom: 25px;">${candidateData.education || 'Not Provided'}</p><h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Work Experience</h3><p style="font-size:16px; margin-bottom: 25px; white-space: pre-wrap;">${candidateData.workHistory || 'Not Provided'}</p><h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Skills & Professional Bio</h3><p style="font-size:16px; white-space: pre-wrap;">${candidateData.bio || 'Not Provided'}</p>`;
-        element.appendChild(watermark); element.appendChild(content);
-        html2pdf().set({ margin: 0.5, filename: `${candidateData.name.replace(/\s+/g, '_')}_CV.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } }).from(element).save();
+        
+        const element = document.createElement('div');
+        element.style.padding = '40px';
+        element.style.fontFamily = 'Arial, sans-serif';
+        element.style.color = '#333';
+        element.style.position = 'relative'; 
+
+        const watermark = document.createElement('div');
+        watermark.innerText = 'SwipeJobs';
+        watermark.style.position = 'absolute';
+        watermark.style.top = '50%';
+        watermark.style.left = '50%';
+        watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
+        watermark.style.fontSize = '80px';
+        watermark.style.fontWeight = 'bold';
+        watermark.style.color = 'rgba(0, 0, 0, 0.08)'; 
+        watermark.style.zIndex = '0';
+        watermark.style.pointerEvents = 'none';
+        
+        const content = document.createElement('div');
+        content.style.position = 'relative';
+        content.style.zIndex = '1';
+        content.innerHTML = `
+            <h1 style="color:#ff4b4b; font-size:32px; margin-bottom: 5px;">${candidateData.name || 'Candidate Name'}</h1>
+            <p style="font-size: 16px; color: #555;">Email: ${candidateData.email || 'N/A'} | Mobile: ${candidateData.mobile || 'N/A'}</p>
+            <p style="font-size: 16px; color: #555;">Location: ${candidateData.city || 'N/A'}, ${candidateData.state || 'N/A'}</p>
+            
+            <hr style="margin: 25px 0; border: 0.5px solid #ccc;">
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Education</h3>
+            <p style="font-size:16px; margin-bottom: 25px; line-height: 1.5;">${candidateData.education || 'Not Provided'}</p>
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Work Experience</h3>
+            <p style="font-size:16px; margin-bottom: 25px; line-height: 1.5; white-space: pre-wrap;">${candidateData.workHistory || 'Not Provided'}</p>
+            
+            <h3 style="color:#ff4b4b; font-size:20px; margin-bottom: 10px;">Skills & Professional Bio</h3>
+            <p style="font-size:16px; line-height: 1.5; white-space: pre-wrap;">${candidateData.bio || 'Not Provided'}</p>
+        `;
+
+        element.appendChild(watermark);
+        element.appendChild(content);
+
+        const opt = {
+            margin:       0.5,
+            filename:     `${candidateData.name.replace(/\s+/g, '_')}_SwipeJobs_CV.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            console.log("PDF generated successfully.");
+        }).catch(err => {
+            alert("Error generating PDF. Please try again.");
+            console.error(err);
+        });
     }
 
-    function reportJob(jobId, event) { event.stopPropagation(); let reason = prompt("Report this job. Enter Reason:"); if (reason && reason.trim() !== "") { db.collection('reports').add({ jobId: jobId, candidateId: currentUser.uid, reason: reason, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).then(() => alert("Report Submitted.")); } }
+    function reportJob(jobId, event) {
+        event.stopPropagation(); 
+        let reason = prompt("Report this job (e.g., Fake Job, Asking for money).\n\nIf fake, admin will take action in 24 hrs.\nContact: admin@swipejobs.com | +91 12345 67890\n\nEnter Reason:");
+        
+        if (reason && reason.trim() !== "") {
+            db.collection('reports').add({
+                jobId: jobId,
+                candidateId: currentUser.uid,
+                reason: reason,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => alert("Report Submitted successfully. We will review it."));
+        }
+    }
 
+    // --- Modals ---
     function openJobModal(jobId) {
         currentJobOnTop = allJobs.find(j => j.id === jobId);
         if(!currentJobOnTop) return;
-        const compName = currentJobOnTop.companyName || 'Company';
+
+        const compName = currentJobOnTop.companyName || (currentJobOnTop.companyEmail ? currentJobOnTop.companyEmail.split('@')[0].toUpperCase() : 'Company');
+
         document.getElementById('m-company').innerText = compName;
-        document.getElementById('m-location').innerText = currentJobOnTop.city ? `${currentJobOnTop.city}, ${currentJobOnTop.state}` : (currentJobOnTop.location || "India");
-        document.getElementById('m-logo').innerText = compName.substring(0,1).toUpperCase();
+        document.getElementById('m-location').innerText = currentJobOnTop.location || "India";
+        document.getElementById('m-logo').innerText = compName.substring(0,1);
         document.getElementById('m-title').innerText = currentJobOnTop.title;
+        document.getElementById('m-type').innerText = currentJobOnTop.jobType || 'Full-Time';
         document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy;
         document.getElementById('m-salary').innerText = currentJobOnTop.salary;
-        document.getElementById('m-desc').innerText = currentJobOnTop.desc || "No description provided.";
-        document.getElementById('m-applycount').innerText = currentJobOnTop.applyCount || Math.floor(Math.random() * 50) + 1;
+        document.getElementById('m-desc').innerText = currentJobOnTop.desc || "No detailed description provided.";
+        document.getElementById('m-applycount').innerText = currentJobOnTop.applyCount || 0;
+
         document.getElementById('job-modal').style.display = 'flex';
     }
 
-    // Function to handle opening a job specifically by ID directly from database (Used when clicking shared links)
-    async function openJobModalById(jobId) {
-        try {
-            const doc = await db.collection('jobs').doc(jobId).get();
-            if(doc.exists) {
-                const j = doc.data(); j.id = doc.id;
-                currentJobOnTop = j; 
-                
-                const compName = j.companyName || 'Company';
-                document.getElementById('m-company').innerText = compName;
-                document.getElementById('m-location').innerText = j.city ? `${j.city}, ${j.state}` : (j.location || "India");
-                document.getElementById('m-logo').innerText = compName.substring(0,1).toUpperCase();
-                document.getElementById('m-title').innerText = j.title;
-                document.getElementById('m-vacancy').innerText = j.vacancy;
-                document.getElementById('m-salary').innerText = j.salary;
-                document.getElementById('m-desc').innerText = j.desc || "No description provided.";
-                document.getElementById('m-applycount').innerText = j.applyCount || Math.floor(Math.random() * 50) + 1;
-
-                document.getElementById('job-modal').style.display = 'flex';
-            }
-        } catch(e) { console.error("Error fetching job modal by ID:", e); }
+    function closeJobModal() {
+        document.getElementById('job-modal').style.display = 'none';
     }
-
-    function closeJobModal() { document.getElementById('job-modal').style.display = 'none'; }
 
     function applyFromModal() {
         if(currentJobOnTop) {
-            const cardObj = document.getElementById('card-' + currentJobOnTop.id);
-            if(cardObj) {
-                swipeCard(currentJobOnTop.id, 'right');
-            } else {
-                // For direct links where the card isn't rendered in the swipe stack yet
-                applyForJob(currentJobOnTop.id);
-            }
+            swipeCard(currentJobOnTop.id, 'right');
             closeJobModal();
         }
     }
