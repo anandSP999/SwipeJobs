@@ -75,7 +75,11 @@
         
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
-        .modal { background: white; padding: 25px; border-radius: 12px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
+        .modal { background: white; padding: 25px; border-radius: 12px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
+        
+        /* Info blocks inside modals */
+        .info-block { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--admin); }
+        .info-block p { margin-bottom: 5px; font-size: 14px; }
 
         /* Error Banner */
         #error-banner { background: #e74c3c; color: white; padding: 10px; text-align: center; display: none; font-size: 14px; }
@@ -122,6 +126,7 @@
         <h2>SwipeJobs Admin</h2>
         <div class="nav-item active" onclick="nav('dashboard')">Dashboard</div>
         <div class="nav-item" onclick="nav('job-approvals')">Job Approvals <span class="badge" id="job-badge">0</span></div>
+        <div class="nav-item" onclick="nav('manage-all-jobs')">Manage All Jobs</div>
         <div class="nav-item" onclick="nav('manage-companies')">Manage Companies</div>
         <div class="nav-item" onclick="nav('payment-logs')">Payment Logs</div>
         <div class="nav-item" onclick="nav('all-candidates')">Candidates</div>
@@ -159,11 +164,26 @@
                 </div>
             </div>
 
-            <!-- 2. Job Approvals -->
+            <!-- 2. Job Approvals (Pending Only) -->
             <div id="job-approvals" class="screen">
                 <h2 style="margin-bottom: 15px;">Pending Job Reviews</h2>
                 <div id="pending-jobs" class="grid-3">
                     <p style="color: #888;">Loading pending jobs...</p>
+                </div>
+            </div>
+
+            <!-- NEW: Manage All Jobs -->
+            <div id="manage-all-jobs" class="screen">
+                <h2 style="margin-bottom: 15px;">All Jobs & Postings Control</h2>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr><th>Job Title</th><th>Company</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="all-jobs-table-body">
+                            <tr><td colspan="4" style="text-align:center;">Loading all jobs...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -173,7 +193,7 @@
                 <div class="table-responsive">
                     <table>
                         <thead>
-                            <tr><th>Email</th><th>Plan</th><th>Posts Used</th><th>Status</th><th>Actions</th></tr>
+                            <tr><th>Company Name / Email</th><th>Plan</th><th>Posts Used</th><th>Status</th><th>Actions</th></tr>
                         </thead>
                         <tbody id="companies-table-body">
                             <tr><td colspan="5" style="text-align:center;">Loading companies...</td></tr>
@@ -209,7 +229,7 @@
                 <h2 style="margin-bottom: 15px;">Platform Application Logs</h2>
                 <div class="table-responsive">
                     <table>
-                        <thead><tr><th>Candidate</th><th>Company</th><th>Job Title</th><th>Status</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Candidate</th><th>Company & Plan</th><th>Job Title (Position)</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody id="applications-table-body">
                             <tr><td colspan="5" style="text-align:center;">Loading applications...</td></tr>
                         </tbody>
@@ -220,12 +240,18 @@
         </div>
     </div>
 
-    <!-- Company Edit Modal -->
+    <!-- Company Edit & Details Modal -->
     <div class="modal-overlay" id="companyModal">
         <div class="modal">
-            <h3 style="margin-bottom: 15px; color: var(--admin)">Manage Company</h3>
+            <h3 style="margin-bottom: 15px; color: var(--admin)">Company Details & Billing</h3>
             <input type="hidden" id="modal-cid">
             
+            <!-- Read Only Info Block -->
+            <div class="info-block">
+                <p><b>Name/Email:</b> <span id="company-info-name"></span></p>
+                <p><b>Contact No:</b> <span id="company-info-phone" style="color:var(--admin); font-weight:bold;"></span></p>
+            </div>
+
             <label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display: block;">Plan Type</label>
             <select id="modal-plan">
                 <option value="free">Free</option>
@@ -243,15 +269,26 @@
             </select>
             
             <div class="btn-group">
-                <button class="btn-success" onclick="saveCompanyDetails()">Save</button>
-                <button class="btn-danger" onclick="deleteCompany()">Delete</button>
-                <button style="background: #95a5a6;" onclick="closeModal()">Cancel</button>
+                <button class="btn-success" onclick="saveCompanyDetails()">Save Settings</button>
+                <button class="btn-danger" onclick="deleteCompany()">Delete Data</button>
+                <button style="background: #95a5a6;" onclick="closeModal('companyModal')">Cancel</button>
             </div>
         </div>
     </div>
 
+    <!-- Candidate Detailed Popup Modal -->
+    <div class="modal-overlay" id="candidateModal">
+        <div class="modal">
+            <h3 style="margin-bottom: 15px; color: var(--admin)">Candidate Full Profile</h3>
+            <div id="candidate-details-content" class="info-block" style="background: white; border: 1px solid #eee;">
+                <!-- Dynamically Populated -->
+            </div>
+            <button style="background: #95a5a6; margin-top: 15px;" onclick="closeModal('candidateModal')">Close View</button>
+        </div>
+    </div>
+
 <script>
-    // 1. Firebase Configuration (From user prompt)
+    // 1. Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
       authDomain: "swipejobs-a5317.firebaseapp.com",
@@ -272,18 +309,15 @@
     }
 
     let activeListeners = [];
+    window.companiesMap = {}; // Global cache for company details
 
     // --- UI Helpers ---
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('open');
-    }
-    
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function closeSidebarOnTouch() {
         if(window.innerWidth <= 768 && document.getElementById('sidebar').classList.contains('open')) {
             document.getElementById('sidebar').classList.remove('open');
         }
     }
-
     function nav(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(s => s.classList.remove('active'));
@@ -291,7 +325,6 @@
         if(event) event.currentTarget.classList.add('active');
         closeSidebarOnTouch();
     }
-    
     function showError(msg) {
         const banner = document.getElementById('error-banner');
         banner.innerText = msg;
@@ -299,16 +332,17 @@
         setTimeout(() => banner.style.display = 'none', 5000);
         console.error(msg);
     }
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
 
     // --- Auth Logic ---
-    // Check if already logged in
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('auth-screen').style.display = 'none';
             initDashboard();
         } else {
             document.getElementById('auth-screen').style.display = 'flex';
-            // Stop listeners
             activeListeners.forEach(unsub => unsub());
             activeListeners = [];
         }
@@ -320,31 +354,23 @@
         if(!email || !pass) return Swal.fire('Error', 'Please enter email and password', 'error');
         
         Swal.fire({title: 'Authenticating...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        
-        auth.signInWithEmailAndPassword(email, pass).then(() => {
-            Swal.close();
-            // onAuthStateChanged will handle the rest
-        }).catch(err => {
-            Swal.fire('Login Failed', err.message, 'error');
-        });
+        auth.signInWithEmailAndPassword(email, pass).then(() => Swal.close())
+        .catch(err => Swal.fire('Login Failed', err.message, 'error'));
     }
     
-    function logoutAdmin() {
-        auth.signOut();
-    }
+    function logoutAdmin() { auth.signOut(); }
 
     // --- Dashboard Data Loading ---
     function initDashboard() {
-        try {
+        // Load companies first to build the map, then load the rest
+        loadCompanies(() => {
             loadKPIs();
             loadPendingJobs();
-            loadCompanies();
+            loadAllJobs();
             loadPayments();
             loadCandidates();
             loadApplications();
-        } catch (error) {
-            showError("Data Load Error: Permission Denied or Missing Index. Check Firestore Rules.");
-        }
+        });
     }
 
     function loadKPIs() {
@@ -352,23 +378,115 @@
             let total = 0;
             snap.forEach(doc => total += (Number(doc.data().amount) || 0));
             document.getElementById('kpi-revenue').innerText = `₹${total}`;
-        }, err => showError("KPI Error: " + err.message));
-        
+        });
         const unsub2 = db.collection('companies').where('status', '==', 'active').onSnapshot(snap => {
             document.getElementById('kpi-companies').innerText = snap.size;
-        }, err => console.log("Ignore missing index initially"));
-        
+        });
         const unsub3 = db.collection('candidates').onSnapshot(snap => {
             document.getElementById('kpi-candidates').innerText = snap.size;
         });
-        
         const unsub4 = db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
             document.getElementById('kpi-jobs').innerText = snap.size;
         });
-        
         activeListeners.push(unsub1, unsub2, unsub3, unsub4);
     }
 
+    function loadCompanies(callback) {
+        const unsub = db.collection('companies').onSnapshot(snap => {
+            const tbody = document.getElementById('companies-table-body');
+            tbody.innerHTML = '';
+            if(snap.empty) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No companies found</td></tr>';
+            
+            snap.forEach(doc => {
+                const c = doc.data();
+                window.companiesMap[doc.id] = c; // Save to global cache
+                const displayName = c.name || c.email || 'N/A';
+                
+                tbody.innerHTML += `<tr>
+                    <td data-label="Company Name"><b>${displayName}</b></td>
+                    <td data-label="Plan"><span style="text-transform: capitalize; background:#e1f5fe; padding:4px 8px; border-radius:4px; font-size:12px;">${c.planType || 'free'}</span></td>
+                    <td data-label="Posts Used">${c.totalPostsUsed || 0}</td>
+                    <td data-label="Status">${c.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</td>
+                    <td data-label="Actions"><button onclick="openCompanyModal('${doc.id}')" style="min-height:36px; padding:6px 12px; font-size:14px;">View & Edit</button></td>
+                </tr>`;
+            });
+            if(callback) { callback(); callback = null; }
+        }, err => showError("Companies Error: " + err.message));
+        activeListeners.push(unsub);
+    }
+
+    function openCompanyModal(id) {
+        const c = window.companiesMap[id];
+        if(!c) return;
+
+        document.getElementById('modal-cid').value = id;
+        document.getElementById('modal-plan').value = c.planType || 'free';
+        document.getElementById('modal-price').value = c.pricePerPost || c.monthlyPrice || 0;
+        document.getElementById('modal-status').value = c.status || 'active';
+        
+        // Detailed info setup
+        document.getElementById('company-info-name').innerText = c.name || c.email || 'N/A';
+        document.getElementById('company-info-phone').innerText = c.phone || c.contactNumber || c.mobile || 'No contact provided';
+        
+        document.getElementById('companyModal').style.display = 'flex';
+    }
+
+    // --- All Jobs Management (NEW) ---
+    function loadAllJobs() {
+        const unsub = db.collection('jobs').onSnapshot(snap => {
+            const tbody = document.getElementById('all-jobs-table-body');
+            tbody.innerHTML = '';
+            if(snap.empty) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No jobs posted yet</td></tr>';
+            
+            snap.forEach(doc => {
+                const j = doc.data();
+                // Determine color based on status
+                let statusColor = j.status === 'Approved' ? 'color: #27ae60;' : (j.status === 'Deactivated' ? 'color: #e74c3c;' : 'color: #f39c12;');
+                
+                tbody.innerHTML += `<tr>
+                    <td data-label="Job Title"><b>${j.title || 'Untitled'}</b></td>
+                    <td data-label="Company">${j.companyEmail || j.companyId || 'N/A'}</td>
+                    <td data-label="Status"><b style="${statusColor}">${j.status || 'Pending'}</b></td>
+                    <td data-label="Actions">
+                        <select onchange="changeAnyJobStatus('${doc.id}', this.value)" style="min-height:36px; padding:5px; margin: 0 5px 5px 0; font-size: 13px; width: 140px;">
+                            <option value="">Set Status...</option>
+                            <option value="Approved">Activate</option>
+                            <option value="Deactivated">Deactivate</option>
+                            <option value="Pending Review">Set Pending</option>
+                        </select>
+                        <button class="btn-danger" style="min-height:36px; padding:6px 12px; width:auto; font-size:13px;" onclick="deleteAnyJob('${doc.id}')">Delete</button>
+                    </td>
+                </tr>`;
+            });
+        }, err => showError("All Jobs Error: " + err.message));
+        activeListeners.push(unsub);
+    }
+
+    function changeAnyJobStatus(jobId, newStatus) {
+        if(!newStatus) return;
+        db.collection('jobs').doc(jobId).update({ status: newStatus })
+        .then(() => Swal.fire('Updated', `Job is now ${newStatus}`, 'success'))
+        .catch(err => Swal.fire('Error', err.message, 'error'));
+    }
+
+    function deleteAnyJob(jobId) {
+        Swal.fire({
+            title: 'Delete this Job?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            confirmButtonText: 'Yes, delete it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.collection('jobs').doc(jobId).delete()
+                .then(() => Swal.fire('Deleted', 'Job post removed.', 'success'))
+                .catch(err => Swal.fire('Error', err.message, 'error'));
+            }
+        });
+    }
+
+    // --- Pending Jobs (Legacy Screen) ---
     function loadPendingJobs() {
         const unsub = db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
             const list = document.getElementById('pending-jobs');
@@ -396,94 +514,11 @@
                     </div>
                 </div>`;
             });
-        }, err => showError("Jobs Error: " + err.message));
-        activeListeners.push(unsub);
-    }
-
-    function loadCompanies() {
-        const unsub = db.collection('companies').onSnapshot(snap => {
-            const tbody = document.getElementById('companies-table-body');
-            tbody.innerHTML = '';
-            if(snap.empty) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No companies found</td></tr>';
-            
-            snap.forEach(doc => {
-                const c = doc.data();
-                tbody.innerHTML += `<tr>
-                    <td data-label="Email"><b>${c.email || 'N/A'}</b></td>
-                    <td data-label="Plan"><span style="text-transform: capitalize; background:#e1f5fe; padding:4px 8px; border-radius:4px; font-size:12px;">${c.planType || 'free'}</span></td>
-                    <td data-label="Posts Used">${c.totalPostsUsed || 0}</td>
-                    <td data-label="Status">${c.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</td>
-                    <td data-label="Actions"><button onclick="openModal('${doc.id}', '${c.planType}', '${c.pricePerPost || c.monthlyPrice || 0}', '${c.status}')" style="min-height:36px; padding:6px 12px; font-size:14px;">Manage</button></td>
-                </tr>`;
-            });
-        }, err => showError("Companies Error: " + err.message));
-        activeListeners.push(unsub);
-    }
-
-    function loadPayments() {
-        const unsub = db.collection('payments').orderBy('date', 'desc').onSnapshot(snap => {
-            const tbody = document.getElementById('payments-table-body');
-            tbody.innerHTML = '';
-            if(snap.empty) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No payments found</td></tr>';
-            
-            let chartLabels = [];
-            let chartData = [];
-            
-            snap.forEach(doc => {
-                const p = doc.data();
-                let d = 'N/A';
-                if(p.date) {
-                    // Handle Firestore timestamp vs JS Date
-                    d = p.date.toDate ? new Date(p.date.toDate()).toLocaleDateString() : new Date(p.date).toLocaleDateString();
-                }
-                
-                if(p.status === 'paid' && p.amount) {
-                    chartLabels.push(d);
-                    chartData.push(p.amount);
-                }
-
-                tbody.innerHTML += `<tr>
-                    <td data-label="Company ID" style="font-size:12px;">${p.companyId || 'N/A'}</td>
-                    <td data-label="Amount" style="font-weight:bold;">₹${p.amount || 0}</td>
-                    <td data-label="Plan" style="text-transform:capitalize;">${p.planType || '-'}</td>
-                    <td data-label="Date">${d}</td>
-                    <td data-label="Status">${p.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</td>
-                </tr>`;
-            });
-
-            renderChart(chartLabels, chartData);
-        }, err => showError("Payments Error: " + err.message));
-        activeListeners.push(unsub);
-    }
-    
-    function renderChart(labels, data) {
-        const ctx = document.getElementById('revenueChart');
-        if(!ctx) return;
-        
-        if(window.revChart) window.revChart.destroy();
-        window.revChart = new Chart(ctx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: labels.reverse().slice(-7), // Last 7
-                datasets: [{
-                    label: 'Revenue (₹)',
-                    data: data.reverse().slice(-7),
-                    borderColor: '#4A90E2',
-                    backgroundColor: 'rgba(74, 144, 226, 0.2)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 4
-                }]
-            },
-            options: { 
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
         });
+        activeListeners.push(unsub);
     }
 
+    // --- Candidates & Modals ---
     function loadCandidates() {
         const unsub = db.collection('candidates').onSnapshot(snap => {
             window.candidatesData = [];
@@ -493,6 +528,54 @@
         activeListeners.push(unsub);
     }
 
+    function renderCandidates(data) {
+        const list = document.getElementById('candidates-list');
+        list.innerHTML = '';
+        if(data.length === 0) { list.innerHTML = '<p style="color:#888;">No candidates found.</p>'; return; }
+        
+        data.forEach(c => {
+            list.innerHTML += `<div class="card" style="text-align:center;">
+                <h3 style="color:var(--admin); margin-bottom:5px;">${c.name || 'Anonymous'}</h3>
+                <p style="font-size:14px; margin-bottom:10px;"><b>Exp:</b> ${c.experience || 'N/A'}</p>
+                <button onclick="openCandidateModal('${c.id}')" style="min-height: 36px; padding: 8px;">View Full Profile</button>
+            </div>`;
+        });
+    }
+
+    function filterCandidates() {
+        const term = document.getElementById('cand-search').value.toLowerCase();
+        const filtered = window.candidatesData.filter(c => 
+            (c.name && c.name.toLowerCase().includes(term)) || 
+            (c.email && c.email.toLowerCase().includes(term)) ||
+            (c.phone && c.phone.includes(term))
+        );
+        renderCandidates(filtered);
+    }
+
+    function openCandidateModal(id) {
+        const c = window.candidatesData.find(x => x.id === id);
+        if(!c) return;
+
+        let html = `
+            <p style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>Name:</b> ${c.name || 'N/A'}</p>
+            <p style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>Email:</b> ${c.email || 'N/A'}</p>
+            <p style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>Phone:</b> <span style="color:var(--admin); font-weight:bold;">${c.phone || c.contactNumber || 'N/A'}</span></p>
+            <p style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>Experience:</b> ${c.experience || '0 years'}</p>
+            <p style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>Skills/Bio:</b> ${c.skills || c.bio || 'Not provided'}</p>
+            <p style="margin-bottom:10px;"><b>Location:</b> ${c.location || c.city || 'N/A'}</p>
+        `;
+        
+        if(c.resumeLink) {
+            html += `<a href="${c.resumeLink}" target="_blank" style="display:block; background:var(--admin); color:white; text-decoration:none; padding:12px; border-radius:5px; font-size:14px; text-align:center; font-weight:600;">📄 Download / View Resume</a>`;
+        } else {
+            html += `<p style="color:#e74c3c; font-size:12px; text-align:center;">No Resume Uploaded</p>`;
+        }
+        
+        document.getElementById('candidate-details-content').innerHTML = html;
+        document.getElementById('candidateModal').style.display = 'flex';
+    }
+
+    // --- Enhanced Applications Logs ---
     function loadApplications() {
         const unsub = db.collection('applications').onSnapshot(snap => {
             const tbody = document.getElementById('applications-table-body');
@@ -501,10 +584,15 @@
             
             snap.forEach(doc => {
                 const a = doc.data();
+                // Find company plan from map
+                const comp = window.companiesMap[a.companyId] || {};
+                const planType = comp.planType ? `<span style="background:#e1f5fe; padding:2px 6px; border-radius:3px; font-size:11px;">${comp.planType}</span>` : '';
+                const compName = a.companyName || comp.name || a.companyId || 'N/A';
+                
                 tbody.innerHTML += `<tr>
-                    <td data-label="Candidate">${a.candidateEmail || a.candidateId || 'N/A'}</td>
-                    <td data-label="Company">${a.companyName || a.companyId || 'N/A'}</td>
-                    <td data-label="Job Title">${a.jobTitle || 'N/A'}</td>
+                    <td data-label="Candidate"><b>${a.candidateName || a.candidateEmail || 'Candidate'}</b></td>
+                    <td data-label="Company & Plan">${compName} <br>${planType}</td>
+                    <td data-label="Job Title (Position)">${a.jobTitle || 'N/A'}</td>
                     <td data-label="Status"><span style="background:#f1c40f; color:#000; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${a.status || 'Applied'}</span></td>
                     <td data-label="Action">
                         <select onchange="updateAppStatus('${doc.id}', this.value)" style="margin:0; min-height: 36px; padding:5px; font-size:13px;">
@@ -520,11 +608,9 @@
         activeListeners.push(unsub);
     }
 
-    // --- Actions ---
-
+    // --- Actions Mapping ---
     async function approveJob(jobId, companyId) {
         Swal.fire({title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        
         try {
             if(companyId && companyId !== 'undefined') {
                 const docRef = await db.collection('companies').doc(companyId).get();
@@ -539,42 +625,22 @@
                     });
                 }
             }
-            
             await db.collection('jobs').doc(jobId).update({ status: 'Approved' });
             Swal.fire('Success', 'Job Approved!', 'success');
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
+        } catch (error) { Swal.fire('Error', error.message, 'error'); }
     }
 
     function rejectJob(jobId) {
         const reason = document.getElementById(`rej-${jobId}`).value || "No reason provided.";
-        db.collection('jobs').doc(jobId).update({ 
-            status: 'Rejected',
-            rejectionReason: reason
-        }).then(() => {
-            Swal.fire('Rejected', 'Job has been rejected.', 'info');
-        }).catch(err => Swal.fire('Error', err.message, 'error'));
+        db.collection('jobs').doc(jobId).update({ status: 'Rejected', rejectionReason: reason })
+        .then(() => Swal.fire('Rejected', 'Job has been rejected.', 'info'))
+        .catch(err => Swal.fire('Error', err.message, 'error'));
     }
 
     function updateAppStatus(appId, newStatus) {
         if(!newStatus) return;
         db.collection('applications').doc(appId).update({ status: newStatus })
-        .then(() => Swal.fire('Updated', 'Status changed to ' + newStatus, 'success'))
-        .catch(err => Swal.fire('Error', err.message, 'error'));
-    }
-
-    // --- Modal Logic ---
-    function openModal(id, plan, price, status) {
-        document.getElementById('modal-cid').value = id;
-        document.getElementById('modal-plan').value = plan || 'free';
-        document.getElementById('modal-price').value = price || 0;
-        document.getElementById('modal-status').value = status || 'active';
-        document.getElementById('companyModal').style.display = 'flex';
-    }
-
-    function closeModal() {
-        document.getElementById('companyModal').style.display = 'none';
+        .then(() => Swal.fire('Updated', 'Status changed to ' + newStatus, 'success'));
     }
 
     function saveCompanyDetails() {
@@ -589,55 +655,64 @@
 
         db.collection('companies').doc(id).update(updateData).then(() => {
             Swal.fire('Saved!', 'Company settings updated.', 'success');
-            closeModal();
+            closeModal('companyModal');
         }).catch(err => Swal.fire('Error', err.message, 'error'));
     }
 
     function deleteCompany() {
         const id = document.getElementById('modal-cid').value;
         Swal.fire({
-            title: 'Are you sure?',
-            text: "This will permanently delete the company!",
+            title: 'Delete Company?',
+            text: "This will permanently wipe the company account!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#e74c3c',
-            confirmButtonText: 'Yes, delete it!'
+            confirmButtonColor: '#e74c3c'
         }).then((result) => {
             if (result.isConfirmed) {
                 db.collection('companies').doc(id).delete().then(() => {
                     Swal.fire('Deleted!', 'Company deleted.', 'success');
-                    closeModal();
-                }).catch(err => Swal.fire('Error', err.message, 'error'));
+                    closeModal('companyModal');
+                });
             }
         });
     }
 
-    // --- Search Candidates ---
-    function renderCandidates(data) {
-        const list = document.getElementById('candidates-list');
-        list.innerHTML = '';
-        if(data.length === 0) {
-            list.innerHTML = '<p style="color:#888;">No candidates found.</p>';
-            return;
-        }
-        
-        data.forEach(c => {
-            list.innerHTML += `<div class="card">
-                <h3 style="color:var(--admin); margin-bottom:5px;">${c.name || 'Anonymous'}</h3>
-                <p style="font-size:14px; margin-bottom:5px;"><b>Email:</b> ${c.email || 'N/A'}</p>
-                <p style="font-size:14px; margin-bottom:10px;"><b>Exp:</b> ${c.experience || 'N/A'}</p>
-                ${c.resumeLink ? `<a href="${c.resumeLink}" target="_blank" style="display:inline-block; background:var(--admin); color:white; text-decoration:none; padding:8px 15px; border-radius:5px; font-size:14px; text-align:center; width:100%;">📄 View Resume</a>` : '<p style="color:#e74c3c; font-size:12px;">No Resume Uploaded</p>'}
-            </div>`;
+    // Chart logic reused from previous implementation
+    function loadPayments() {
+        const unsub = db.collection('payments').orderBy('date', 'desc').onSnapshot(snap => {
+            const tbody = document.getElementById('payments-table-body');
+            tbody.innerHTML = '';
+            let chartLabels = []; let chartData = [];
+            
+            snap.forEach(doc => {
+                const p = doc.data();
+                let d = p.date ? (p.date.toDate ? new Date(p.date.toDate()).toLocaleDateString() : new Date(p.date).toLocaleDateString()) : 'N/A';
+                if(p.status === 'paid' && p.amount) { chartLabels.push(d); chartData.push(p.amount); }
+                tbody.innerHTML += `<tr>
+                    <td data-label="Company ID">${p.companyId || 'N/A'}</td>
+                    <td data-label="Amount"><b>₹${p.amount || 0}</b></td>
+                    <td data-label="Plan">${p.planType || '-'}</td>
+                    <td data-label="Date">${d}</td>
+                    <td data-label="Status">${p.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</td>
+                </tr>`;
+            });
+            renderChart(chartLabels, chartData);
         });
+        activeListeners.push(unsub);
     }
-
-    function filterCandidates() {
-        const term = document.getElementById('cand-search').value.toLowerCase();
-        const filtered = window.candidatesData.filter(c => 
-            (c.name && c.name.toLowerCase().includes(term)) || 
-            (c.email && c.email.toLowerCase().includes(term))
-        );
-        renderCandidates(filtered);
+    
+    function renderChart(labels, data) {
+        const ctx = document.getElementById('revenueChart');
+        if(!ctx) return;
+        if(window.revChart) window.revChart.destroy();
+        window.revChart = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels.reverse().slice(-7),
+                datasets: [{ label: 'Revenue (₹)', data: data.reverse().slice(-7), borderColor: '#4A90E2', backgroundColor: 'rgba(74, 144, 226, 0.2)', fill: true, tension: 0.4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
     }
 </script>
 </body>
