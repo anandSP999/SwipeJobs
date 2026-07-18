@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwipeJobs - Candidate Portal</title>
     
+    <!-- Firebase & PDF Libraries -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         :root { --primary: #ff4b4b; --bg-color: #f4f4f4; --card-bg: #ffffff; --text-dark: #333; --text-light: #777; }
@@ -15,33 +18,47 @@
         body { background-color: #e0e0e0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
 
         .app-container { width: 100%; height: 100vh; background: var(--bg-color); position: relative; display: flex; flex-direction: column; overflow: hidden; }
-        @media (min-width: 768px) {
-            .app-container { width: 400px; height: 85vh; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        
+        /* Desktop View (Split Screen) */
+        @media (min-width: 1024px) {
+            .app-container { width: 100%; height: 100vh; flex-direction: row; border-radius: 0; }
+            #main-screen { flex-direction: row !important; width: 100%; }
+            #view-swipe { width: 60%; border-right: 1px solid #ccc; position: relative; }
+            #view-applied { width: 40%; display: flex !important; }
+            .nav-tabs { display: none; } /* Hide bottom nav on PC */
+            .pc-header { display: flex; justify-content: space-between; padding: 15px 30px; background: white; width: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: absolute; top: 0; z-index: 100; }
         }
 
         .screen { display: none; flex-direction: column; height: 100%; width: 100%; padding: 20px; overflow-y: auto; }
         .screen.active { display: flex; }
 
-        input, button, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+        input, button, textarea, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
         button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { background-color: #e03e3e; }
 
+        /* Mobile Bottom Nav */
         .nav-tabs { display: flex; justify-content: space-around; background: white; padding: 15px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); position: absolute; bottom: 0; width: 100%; z-index: 10; }
         .nav-tabs span { font-size: 14px; font-weight: bold; color: var(--text-light); cursor: pointer; }
         .nav-tabs span.active-tab { color: var(--primary); }
 
-        .swipe-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; margin-bottom: 60px; }
-        .card { position: absolute; width: 90%; height: 80%; background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.3s ease; cursor: grab; user-select: none; }
-        .company-name { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .location-tabs { display: flex; justify-content: center; gap: 10px; margin-top: 60px; padding: 10px; }
+        @media (max-width: 1023px) { .location-tabs { margin-top: 10px; } }
+        .loc-btn { width: auto; padding: 8px 15px; border-radius: 20px; background: #ddd; color: black; margin: 0; }
+        .loc-btn.active { background: var(--primary); color: white; }
+
+        .swipe-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; margin-bottom: 60px; overflow: hidden; }
+        .card { position: absolute; width: 90%; height: 80%; max-width: 450px; background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; cursor: grab; user-select: none; touch-action: pan-y; }
+        .company-name { font-size: 24px; font-weight: bold; color: var(--primary); display: flex; justify-content: space-between; }
         .job-title { font-size: 18px; margin-bottom: 10px; }
         .job-details { font-size: 14px; color: var(--text-light); margin-bottom: 5px; }
+        .report-icon { font-size: 18px; cursor: pointer; color: #ff9800; }
 
         .card-actions { display: flex; justify-content: space-between; gap: 10px; }
         .btn-reject { background: #ccc; color: black; }
         .btn-apply { background: var(--primary); }
 
-        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 90%; max-height: 90%; border-radius: 15px; padding: 20px; overflow-y: auto; position: relative; }
+        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 500px; max-height: 90%; border-radius: 15px; padding: 20px; overflow-y: auto; position: relative; }
         .close-modal { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; font-weight: bold; }
 
         .applied-item { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -51,65 +68,91 @@
 <body>
 
 <div class="app-container">
+    <!-- Login Screen -->
     <div id="auth-screen" class="screen active">
         <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 32px;">SwipeJobs</h2>
         <h3>Login</h3>
-        <p style="margin-bottom: 20px; font-size: 14px; color: #777;">Welcome back! Please login.</p>
-        
         <input type="email" id="login-email" placeholder="Email ID">
         <input type="password" id="login-pass" placeholder="Password">
         <button onclick="login()">Login</button>
-        
-        <hr style="margin: 20px 0; border: 0.5px solid #ddd;">
-        <p style="text-align: center; margin-bottom: 10px;">Don't have an account?</p>
+        <hr style="margin: 20px 0;">
         <button onclick="openRegisterModal()" style="background: #333;">New Registration</button>
     </div>
 
+    <!-- Registration Modal (Advanced Profile) -->
     <div id="register-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeRegisterModal()">✖</span>
-            <h2 style="color: var(--primary); margin-bottom: 5px;">Create Profile</h2>
-            <p style="font-size: 12px; color: #777; margin-bottom: 15px;">All details are mandatory for job applications.</p>
+            <h2 style="color: var(--primary);">Create Profile</h2>
+            <p style="font-size: 12px; color: #777; margin-bottom: 15px;">Complete your Resume Database profile</p>
             
             <input type="email" id="reg-email" placeholder="Email ID *">
             <input type="password" id="reg-pass" placeholder="Password *">
             <input type="text" id="reg-name" placeholder="Full Name *">
-            <input type="text" id="reg-exp" placeholder="Experience (e.g. 2 Years) *">
-            <input type="text" id="reg-resume" placeholder="Google Drive Resume Link *">
+            <input type="tel" id="reg-mobile" placeholder="Mobile Number *">
+            <input type="text" id="reg-city" placeholder="City *">
+            <input type="text" id="reg-state" placeholder="State *">
+            
+            <h4>Education & Experience</h4>
+            <input type="text" id="reg-10th" placeholder="10th % or Grade">
+            <input type="text" id="reg-12th" placeholder="12th % or Grade">
+            <input type="text" id="reg-grad" placeholder="Graduation Details">
+            <input type="text" id="reg-exp" placeholder="Total Experience (e.g. 2 Years) *">
+            
+            <h4>Upload Resume (PDF)</h4>
+            <input type="file" id="reg-resume" accept="application/pdf">
             <textarea id="reg-bio" placeholder="Skills & Basic Details *" rows="3"></textarea>
             
-            <button onclick="registerNewCandidate()">Register & Enter App</button>
+            <button id="reg-btn" onclick="registerNewCandidate()">Register & Enter App</button>
         </div>
     </div>
 
+    <!-- Main Screen -->
     <div id="main-screen" class="screen" style="padding: 0;">
+        <!-- PC Header (Hidden on Mobile) -->
+        <div class="pc-header" style="display: none;">
+            <h2 style="color:var(--primary);">SwipeJobs</h2>
+            <div>
+                <button onclick="logout()" style="width: auto; padding: 8px 20px;">Logout</button>
+            </div>
+        </div>
+
         <div id="view-swipe" class="view" style="height: 100%; display: flex; flex-direction: column;">
-            <div style="padding: 15px;">
-                <input type="text" class="search-bar" placeholder="Search Jobs (e.g. Developer)...">
+            <div class="location-tabs">
+                <button class="loc-btn active" id="btn-nearby" onclick="setJobFilter('nearby')">🏠 Nearby</button>
+                <button class="loc-btn" id="btn-india" onclick="setJobFilter('india')">🇮🇳 All India</button>
             </div>
             <div class="swipe-area" id="swipe-area"></div>
         </div>
 
-        <div id="view-applied" class="view" style="height: 100%; display: none; padding: 15px; overflow-y: auto; margin-bottom: 60px;">
-            <h2>Applied Jobs Status</h2>
+        <div id="view-applied" class="view" style="height: 100%; display: none; padding: 20px; overflow-y: auto; background: #f9f9f9;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Applied Jobs</h2>
+                <button onclick="generatePDF()" style="width: auto; padding: 8px 15px; font-size: 12px;">📄 Download Profile PDF</button>
+            </div>
             <br>
             <div id="applied-list"></div>
         </div>
 
+        <!-- Mobile Nav -->
         <div class="nav-tabs">
             <span class="active-tab" id="tab-swipe" onclick="switchTab('swipe')">Swipe Jobs</span>
             <span id="tab-applied" onclick="switchTab('applied')">Applied Status</span>
         </div>
     </div>
 
+    <!-- Job Details Modal -->
     <div id="job-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeJobModal()">✖</span>
             <h2 id="m-company" class="company-name">Company</h2>
-            <h3 id="m-title" class="job-title">Job Title</h3>
+            <p id="m-location" style="color: var(--text-light); font-size: 14px;"></p>
+            <h3 id="m-title" class="job-title" style="margin-top: 10px;">Job Title</h3>
             <hr style="margin: 10px 0;">
+            <p><strong>Job Type:</strong> <span id="m-type">Full-Time</span></p>
             <p><strong>Vacancies:</strong> <span id="m-vacancy"></span></p>
             <p><strong>Salary:</strong> <span id="m-salary"></span></p>
+            <p><strong>Total Applied:</strong> <span id="m-appliedCount">0</span></p>
             <br>
             <h4>Job Description:</h4>
             <p id="m-desc" style="font-size: 14px; color: var(--text-light); margin-top: 5px;"></p>
@@ -118,9 +161,27 @@
         </div>
     </div>
 
+    <!-- Report Modal -->
+    <div id="report-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-modal" onclick="closeReportModal()">✖</span>
+            <h2 style="color: #ff9800;">⚠️ Report Job</h2>
+            <p style="font-size: 12px; margin-bottom: 15px;">Agar ye job fake hai, to hum 24 ghante mein action lenge.</p>
+            <select id="report-reason">
+                <option value="Fake Job">Fake Job / Fraud</option>
+                <option value="Asking for Money">Asking for Money</option>
+                <option value="Abusive Behavior">Abusive Behavior</option>
+                <option value="Other">Other</option>
+            </select>
+            <button onclick="submitReport()" style="background: #ff9800;">Submit Report</button>
+            <hr style="margin: 15px 0;">
+            <p style="font-size: 12px; text-align: center;">Contact Admin: admin@swipejobs.com<br>+91 12345 67890</p>
+        </div>
+    </div>
 </div>
 
 <script>
+    // REPLACE WITH YOUR FIREBASE CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
         authDomain: "swipejobs-a5317.firebaseapp.com",
@@ -133,40 +194,69 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
+    const storage = firebase.storage();
 
     let currentUser = null;
-    let currentJobOnTop = null;
+    let currentUserData = null;
     let allJobs = [];
+    let filteredJobs = [];
+    let currentFilter = 'india';
+    let jobToReport = null;
+    let currentJobOnTop = null;
 
+    // Fix Display based on screen size
+    if(window.innerWidth >= 1024) {
+        document.querySelector('.pc-header').style.display = 'flex';
+    }
+
+    /* --- Auth & Registration --- */
     function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
     function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
 
-    function registerNewCandidate() {
+    async function registerNewCandidate() {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
-        const name = document.getElementById('reg-name').value;
-        const exp = document.getElementById('reg-exp').value;
-        const resume = document.getElementById('reg-resume').value;
-        const bio = document.getElementById('reg-bio').value;
+        const file = document.getElementById('reg-resume').files[0];
+        
+        const data = {
+            name: document.getElementById('reg-name').value,
+            mobile: document.getElementById('reg-mobile').value,
+            city: document.getElementById('reg-city').value,
+            state: document.getElementById('reg-state').value,
+            education: {
+                tenth: document.getElementById('reg-10th').value,
+                twelfth: document.getElementById('reg-12th').value,
+                graduation: document.getElementById('reg-grad').value
+            },
+            experience: document.getElementById('reg-exp').value,
+            bio: document.getElementById('reg-bio').value,
+            email: email
+        };
 
-        if(!email || !pass || !name || !exp || !resume || !bio) {
-            alert("Please fill all details!"); return;
+        if(!email || !pass || !data.name || !data.mobile || !data.city || !file) {
+            alert("Please fill all mandatory fields and upload PDF!"); return;
         }
 
-        auth.createUserWithEmailAndPassword(email, pass)
-            .then(userCred => {
-                const uid = userCred.user.uid;
-                return db.collection('candidates').doc(uid).set({
-                    name: name, experience: exp, resumeLink: resume, bio: bio, email: email
-                });
-            })
-            .then(() => {
-                alert("Account Created Successfully!");
-                closeRegisterModal();
-                showScreen('main-screen');
-                fetchLiveJobs();
-            })
-            .catch(err => alert(err.message));
+        document.getElementById('reg-btn').innerText = "Uploading & Registering...";
+        
+        try {
+            const userCred = await auth.createUserWithEmailAndPassword(email, pass);
+            const uid = userCred.user.uid;
+            
+            // Upload PDF to Firebase Storage
+            const storageRef = storage.ref(`resumes/${uid}/${file.name}`);
+            await storageRef.put(file);
+            data.resumeUrl = await storageRef.getDownloadURL();
+
+            // Save to Firestore
+            await db.collection('candidates').doc(uid).set(data);
+            
+            alert("Profile Created Successfully!");
+            closeRegisterModal();
+        } catch (err) {
+            alert(err.message);
+            document.getElementById('reg-btn').innerText = "Register & Enter App";
+        }
     }
 
     function login() {
@@ -175,12 +265,17 @@
         auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
     }
 
+    function logout() { auth.signOut(); }
+
     auth.onAuthStateChanged(user => {
         if (user) {
             currentUser = user;
-            showScreen('main-screen');
-            fetchLiveJobs();
-            loadAppliedJobs();
+            db.collection('candidates').doc(user.uid).get().then(doc => {
+                currentUserData = doc.data();
+                showScreen('main-screen');
+                getUserLocation(); 
+                loadAppliedJobs();
+            });
         } else {
             showScreen('auth-screen');
         }
@@ -192,10 +287,29 @@
     }
 
     function switchTab(tab) {
+        if (window.innerWidth >= 1024) return; // Ignore on PC
         document.getElementById('view-swipe').style.display = tab === 'swipe' ? 'flex' : 'none';
         document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
         document.getElementById('tab-swipe').classList.toggle('active-tab', tab === 'swipe');
         document.getElementById('tab-applied').classList.toggle('active-tab', tab === 'applied');
+    }
+
+    /* --- Location & Jobs --- */
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            // Simulated location resolution based on registration data for stability
+            currentFilter = 'nearby';
+            fetchLiveJobs();
+        } else {
+            fetchLiveJobs();
+        }
+    }
+
+    function setJobFilter(filter) {
+        currentFilter = filter;
+        document.getElementById('btn-nearby').classList.toggle('active', filter === 'nearby');
+        document.getElementById('btn-india').classList.toggle('active', filter === 'india');
+        applyFilter();
     }
 
     function fetchLiveJobs() {
@@ -206,10 +320,23 @@
                 jobData.id = doc.id;
                 allJobs.push(jobData);
             });
-            renderJobs(allJobs);
+            applyFilter();
         }).catch(err => console.log("Error fetching jobs: ", err));
     }
 
+    function applyFilter() {
+        if (currentFilter === 'nearby' && currentUserData && currentUserData.city) {
+            const userCity = currentUserData.city.toLowerCase();
+            filteredJobs = allJobs.filter(j => j.location && j.location.toLowerCase().includes(userCity));
+            // Fallback if no nearby jobs
+            if(filteredJobs.length === 0) filteredJobs = allJobs;
+        } else {
+            filteredJobs = allJobs;
+        }
+        renderJobs(filteredJobs);
+    }
+
+    /* --- Swipe Logic (Tinder Style) --- */
     function renderJobs(jobsArray) {
         const swipeArea = document.getElementById('swipe-area');
         swipeArea.innerHTML = ''; 
@@ -227,58 +354,113 @@
             card.style.transform = `scale(${1 - i*0.05}) translateY(${i*10}px)`;
             card.style.zIndex = jobsArray.length - i;
             
-            const compName = job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'Company';
+            const compName = job.companyName || (job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'COMPANY');
 
             card.innerHTML = `
-                <div onclick="openJobModal('${job.id}')" style="flex:1; cursor:pointer;">
-                    <div class="company-name">${compName}</div>
+                <div style="flex:1; cursor:pointer;" onclick="openJobModal('${job.id}')">
+                    <div class="company-name">
+                        ${compName} 
+                        <span class="report-icon" onclick="event.stopPropagation(); openReportModal('${job.id}')">⚠️</span>
+                    </div>
                     <div class="job-title">${job.title}</div>
-                    <div class="job-details">Salary: ${job.salary}</div>
-                    <div class="job-details">Vacancies: ${job.vacancy}</div>
-                    <p style="margin-top:20px; color:var(--text-light); font-size:12px;">(Click card to see full details)</p>
+                    <div class="job-details">📍 ${job.location || 'India'}</div>
+                    <div class="job-details">💰 ${job.salary}</div>
+                    <p style="margin-top:15px; color:var(--text-light); font-size:12px;">(Tap card to expand)</p>
                 </div>
                 <div class="card-actions">
-                    <button class="btn-reject" onclick="swipeCard('${job.id}', 'left')">✖ Reject</button>
-                    <button class="btn-apply" onclick="swipeCard('${job.id}', 'right')">✔ Apply</button>
+                    <button class="btn-reject" onclick="handleAction('${job.id}', 'left')">✖ Reject</button>
+                    <button class="btn-apply" onclick="handleAction('${job.id}', 'right')">✔ Apply</button>
                 </div>
             `;
+
+            setupSwipe(card, job.id);
             swipeArea.appendChild(card);
         }
     }
 
-    function swipeCard(jobId, direction) {
+    function setupSwipe(card, jobId) {
+        let startX = 0, currentX = 0;
+        
+        card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+        card.addEventListener('touchmove', e => {
+            currentX = e.touches[0].clientX - startX;
+            const rotation = currentX * 0.05;
+            card.style.transform = `translateX(${currentX}px) rotate(${rotation}deg)`;
+        });
+        card.addEventListener('touchend', () => {
+            if (currentX > 100) handleAction(jobId, 'right');
+            else if (currentX < -100) handleAction(jobId, 'left');
+            else card.style.transform = `scale(1) translateY(0px)`; 
+        });
+    }
+
+    function handleAction(jobId, direction) {
         const card = document.getElementById('card-' + jobId);
         if (!card) return;
         
         if (direction === 'right') {
             card.style.transform = `translateX(150%) rotate(30deg)`;
+            card.style.opacity = '0';
             applyForJob(jobId);
         } else {
             card.style.transform = `translateX(-150%) rotate(-30deg)`;
+            card.style.opacity = '0';
         }
-        
-        card.style.opacity = '0';
         setTimeout(() => { card.remove(); }, 300);
     }
 
     function applyForJob(jobId) {
         const job = allJobs.find(j => j.id === jobId);
-        if(!job) return;
-
-        const compName = job.companyEmail ? job.companyEmail.split('@')[0] : 'Company';
+        if(!job || !currentUserData) return;
 
         const applicationData = {
             candidateId: currentUser.uid,
-            candidateEmail: currentUser.email,
             companyId: job.companyId,
             jobId: job.id,
-            companyName: compName,
             jobTitle: job.title,
+            companyName: job.companyName || 'Company',
             status: 'Applied (Under Review)',
-            appliedAt: firebase.firestore.FieldValue.serverTimestamp()
+            appliedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            // Embed candidate profile for company
+            candidateData: currentUserData 
         };
 
         db.collection('applications').add(applicationData);
+    }
+
+    /* --- Modals & Utilities --- */
+    function openJobModal(jobId) {
+        currentJobOnTop = allJobs.find(j => j.id === jobId);
+        if(!currentJobOnTop) return;
+
+        document.getElementById('m-company').innerText = currentJobOnTop.companyName || 'Company';
+        document.getElementById('m-location').innerText = currentJobOnTop.location || 'N/A';
+        document.getElementById('m-title').innerText = currentJobOnTop.title;
+        document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy || 'N/A';
+        document.getElementById('m-salary').innerText = currentJobOnTop.salary;
+        document.getElementById('m-desc').innerText = currentJobOnTop.desc;
+        
+        document.getElementById('job-modal').style.display = 'flex';
+    }
+    function closeJobModal() { document.getElementById('job-modal').style.display = 'none'; }
+    function applyFromModal() { if(currentJobOnTop) { handleAction(currentJobOnTop.id, 'right'); closeJobModal(); } }
+
+    function openReportModal(jobId) { jobToReport = jobId; document.getElementById('report-modal').style.display = 'flex'; }
+    function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; jobToReport = null; }
+    
+    function submitReport() {
+        if(!jobToReport) return;
+        const reason = document.getElementById('report-reason').value;
+        db.collection('reports').add({
+            jobId: jobToReport,
+            candidateId: currentUser.uid,
+            reason: reason,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            alert("Report submitted successfully. Admin will review within 24 hours.");
+            closeReportModal();
+            handleAction(jobToReport, 'left'); // Remove job from view
+        });
     }
 
     function loadAppliedJobs() {
@@ -289,10 +471,9 @@
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 const data = doc.data();
-                const safeCompName = data.companyName ? data.companyName.toUpperCase() : 'UNKNOWN';
                 list.innerHTML += `
                     <div class="applied-item">
-                        <div class="company-name" style="font-size:18px;">${safeCompName}</div>
+                        <div class="company-name" style="font-size:18px;">${data.companyName}</div>
                         <div class="job-title" style="font-size:14px;">${data.jobTitle}</div>
                         <div class="status-badge">${data.status}</div>
                     </div>
@@ -301,30 +482,31 @@
         });
     }
 
-    function openJobModal(jobId) {
-        currentJobOnTop = allJobs.find(j => j.id === jobId);
-        if(!currentJobOnTop) return;
-
-        const compName = currentJobOnTop.companyEmail ? currentJobOnTop.companyEmail.split('@')[0].toUpperCase() : 'Company';
-
-        document.getElementById('m-company').innerText = compName;
-        document.getElementById('m-title').innerText = currentJobOnTop.title;
-        document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy;
-        document.getElementById('m-salary').innerText = currentJobOnTop.salary;
-        document.getElementById('m-desc').innerText = currentJobOnTop.desc;
-
-        document.getElementById('job-modal').style.display = 'flex';
-    }
-
-    function closeJobModal() {
-        document.getElementById('job-modal').style.display = 'none';
-    }
-
-    function applyFromModal() {
-        if(currentJobOnTop) {
-            swipeCard(currentJobOnTop.id, 'right');
-            closeJobModal();
-        }
+    /* --- PDF Generator --- */
+    function generatePDF() {
+        if(!currentUserData) return;
+        
+        const content = `
+            <div style="padding: 20px; font-family: sans-serif;">
+                <h1 style="color: #ff4b4b;">${currentUserData.name}</h1>
+                <p><strong>Email:</strong> ${currentUserData.email} | <strong>Mobile:</strong> ${currentUserData.mobile}</p>
+                <p><strong>Location:</strong> ${currentUserData.city}, ${currentUserData.state}</p>
+                <hr style="margin: 15px 0;">
+                <h3>Experience & Skills</h3>
+                <p><strong>Total Experience:</strong> ${currentUserData.experience}</p>
+                <p><strong>Bio:</strong> ${currentUserData.bio}</p>
+                <hr style="margin: 15px 0;">
+                <h3>Education</h3>
+                <p><strong>10th:</strong> ${currentUserData.education.tenth || 'N/A'}</p>
+                <p><strong>12th:</strong> ${currentUserData.education.twelfth || 'N/A'}</p>
+                <p><strong>Graduation:</strong> ${currentUserData.education.graduation || 'N/A'}</p>
+            </div>
+        `;
+        
+        const element = document.createElement('div');
+        element.innerHTML = content;
+        
+        html2pdf().from(element).save(`${currentUserData.name}_Resume.pdf`);
     }
 </script>
 </body>
