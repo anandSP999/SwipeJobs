@@ -25,7 +25,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-dark); display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; transition: 0.3s; }
+        body { background-color: var(--bg-color); color: var(--text-dark); display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
 
         .app-container { width: 100%; height: 100vh; background: var(--bg-color); position: relative; display: flex; flex-direction: column; overflow: hidden; transition: 0.3s; }
         
@@ -37,7 +37,7 @@
             #view-swipe { width: 60%; border-right: 1px solid #ccc; position: relative; }
             #view-side-panel { width: 40%; display: flex !important; flex-direction: column; }
             #view-applied, #view-profile { display: flex; flex: 1; flex-direction: column; }
-            .desktop-header { display: flex !important; justify-content: space-between; padding: 15px; background: var(--nav-bg); border-bottom: 1px solid #ddd; }
+            .desktop-header { display: flex !important; justify-content: space-between; align-items: center; padding: 15px; background: var(--nav-bg); border-bottom: 1px solid #ddd; }
         }
 
         .desktop-header { display: none; } 
@@ -51,7 +51,7 @@
         
         /* Top Navigation for Mobile */
         .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--nav-bg); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .top-header h2 { color: var(--primary); font-size: 20px; margin: 0; }
+        .top-header h2 { color: var(--primary); font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
         .header-icons span { font-size: 20px; cursor: pointer; margin-left: 15px; position: relative; }
         
         .notification-dot { position: absolute; top: 0; right: -5px; width: 10px; height: 10px; background: red; border-radius: 50%; display: none; }
@@ -101,12 +101,12 @@
 <div class="app-container">
     <!-- Desktop Top Navigation -->
     <div class="desktop-header">
-        <h2 style="color: var(--primary);">SwipeJobs</h2>
+        <h2 style="color: var(--primary); cursor: pointer;" onclick="switchTab('swipe')">🏠 SwipeJobs</h2>
         <div>
             <button style="width: auto; margin:0 5px;" onclick="switchTab('swipe')">Home</button>
             <button style="width: auto; margin:0 5px;" onclick="switchTab('applied')">Applied Jobs</button>
             <button style="width: auto; margin:0 5px;" onclick="switchTab('profile')">My Profile</button>
-            <button style="width: auto; margin:0 5px; background: #333;" onclick="toggleDarkMode()">🌓 Mode</button>
+            <button style="width: auto; margin:0 5px; background: #333;" onclick="toggleDarkMode()">🌓 Theme</button>
             <button style="width: auto; margin:0 5px; background: #ccc; color: black;" onclick="auth.signOut()">Logout</button>
         </div>
     </div>
@@ -158,11 +158,11 @@
         
         <!-- Mobile Top Header -->
         <div class="top-header" id="mobile-top-header">
-            <h2>SwipeJobs</h2>
+            <h2 onclick="switchTab('swipe')">🏠 SwipeJobs</h2>
             <div class="header-icons">
-                <span onclick="toggleDarkMode()">🌓</span>
-                <span onclick="switchTab('profile')">👤</span>
-                <span onclick="switchTab('applied')">🔔<div class="notification-dot" id="notif-badge"></div></span>
+                <span onclick="toggleDarkMode()" title="Toggle Theme">🌓</span>
+                <span onclick="switchTab('profile')" title="My Profile">👤</span>
+                <span onclick="switchTab('applied')" title="Notifications">🔔<div class="notification-dot" id="notif-badge"></div></span>
             </div>
         </div>
 
@@ -174,7 +174,7 @@
             
             <!-- Location Filters -->
             <div class="filter-buttons">
-                <button id="btn-nearby" class="active" onclick="setLocationFilter('nearby')">🏠 Nearby</button>
+                <button id="btn-nearby" class="active" onclick="setLocationFilter('nearby')">📍 Nearby</button>
                 <button id="btn-allindia" onclick="setLocationFilter('all')">🇮🇳 All India</button>
             </div>
 
@@ -194,7 +194,7 @@
                 <div id="applied-list"></div>
             </div>
 
-            <!-- Profile Tab (Now Fully Editable) -->
+            <!-- Profile Tab -->
             <div id="view-profile" style="padding: 20px; display: none;">
                 <h2>My Profile</h2>
                 <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Update your skills and experience here.</p>
@@ -205,7 +205,7 @@
 
         <!-- Mobile Bottom Nav -->
         <div class="mobile-nav-tabs">
-            <span class="active-tab" id="tab-swipe" onclick="switchTab('swipe')">Swipe</span>
+            <span class="active-tab" id="tab-swipe" onclick="switchTab('swipe')">🏠 Home</span>
             <span id="tab-applied" onclick="switchTab('applied')">Applied</span>
             <span id="tab-profile" onclick="switchTab('profile')">Profile</span>
         </div>
@@ -238,6 +238,11 @@
 </div>
 
 <script>
+    // --- Dark Mode Initialization (Runs on Load) ---
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+
     // --- Firebase Initialization ---
     const firebaseConfig = {
         apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
@@ -269,13 +274,17 @@
         }
     }
 
+    // --- Persistent Theme Toggle ---
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
+        const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        localStorage.setItem('theme', currentTheme);
     }
 
     function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
     function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
 
+    // --- Navigation ---
     function switchTab(tab) {
         if(window.innerWidth >= 1024) {
             document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
@@ -301,6 +310,7 @@
         renderJobs(); 
     }
 
+    // --- Auth ---
     async function registerNewCandidate() {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
@@ -384,6 +394,7 @@
         }
     }
 
+    // --- Job Loading & Rendering ---
     function fetchLiveJobs() {
         db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
             allJobs = [];
@@ -460,6 +471,7 @@
         renderJobs();
     }
 
+    // --- Drag/Swipe Interactions ---
     function attachSwipeEvents(card, jobId) {
         let startX = 0, currentX = 0, isDragging = false;
 
@@ -513,19 +525,23 @@
         
         if (direction === 'right') {
             card.style.transform = `translateX(150%) rotate(30deg)`;
-            applyForJob(jobId);
+            card.style.opacity = '0';
+            setTimeout(() => { 
+                card.remove(); 
+                allJobs = allJobs.filter(j => j.id !== jobId);
+                applyForJob(jobId);
+            }, 300);
         } else {
             card.style.transform = `translateX(-150%) rotate(-30deg)`;
             lastRejectedJob = jobId;
             showUndoBtn();
+            card.style.opacity = '0';
+            setTimeout(() => { 
+                card.remove(); 
+                allJobs = allJobs.filter(j => j.id !== jobId);
+                renderJobs(); 
+            }, 300);
         }
-        
-        card.style.opacity = '0';
-        setTimeout(() => { 
-            card.remove(); 
-            allJobs = allJobs.filter(j => j.id !== jobId);
-            renderJobs(); 
-        }, 300);
     }
 
     function showUndoBtn() {
@@ -538,28 +554,67 @@
         if(!lastRejectedJob) return;
         document.getElementById('undo-btn').style.display = 'none';
         fetchLiveJobs(); 
-        alert("Action Undone!");
     }
 
+    // --- Advanced Application Logic (With Cooldown Check) ---
     async function applyForJob(jobId) {
-        const job = allJobs.find(j => j.id === jobId);
-        if(!job) return;
+        const job = allJobs.find(j => j.id === jobId) || { id: jobId }; 
+        if(!currentUser) return;
 
-        const compName = job.companyName || (job.companyEmail ? job.companyEmail.split('@')[0] : 'Company');
+        try {
+            // 1. Check Previous Applications for this Candidate & Job
+            const appsRef = db.collection('applications');
+            const snapshot = await appsRef.where('candidateId', '==', currentUser.uid)
+                                          .where('jobId', '==', jobId)
+                                          .get();
 
-        const applicationData = {
-            candidateId: currentUser.uid,
-            companyId: job.companyId,
-            jobId: job.id,
-            companyName: compName,
-            jobTitle: job.title,
-            status: 'Applied',
-            candidateData: candidateData, 
-            appliedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+            if (!snapshot.empty) {
+                // If applied 2 or more times
+                if (snapshot.size >= 2) {
+                    alert("Aap is job ke liye max (2 baar) apply kar chuke hain. Limit poori ho chuki hai.");
+                    fetchLiveJobs(); // Bring card back for UI reset
+                    return;
+                }
+                
+                // If applied exactly 1 time, check 24 hour cooldown
+                const existingApp = snapshot.docs[0].data();
+                const appliedAt = existingApp.appliedAt ? existingApp.appliedAt.toDate() : new Date();
+                const now = new Date();
+                const diffHours = Math.abs(now - appliedAt) / 36e5;
+                
+                if (diffHours < 24) {
+                    const hoursLeft = Math.ceil(24 - diffHours);
+                    alert(`Aapne pehle hi apply kiya hai. Dobara apply karne ke liye ${hoursLeft} ghante wait karein.`);
+                    fetchLiveJobs(); // Bring card back
+                    return;
+                }
+            }
 
-        await db.collection('applications').add(applicationData);
-        document.getElementById('notif-badge').style.display = 'block'; 
+            // 2. Proceed with Application
+            // Re-fetch job object if we relied on the fallback
+            const actualJob = allJobs.find(j => j.id === jobId) || await db.collection('jobs').doc(jobId).get().then(doc => ({...doc.data(), id: doc.id}));
+            
+            const compName = actualJob.companyName || (actualJob.companyEmail ? actualJob.companyEmail.split('@')[0] : 'Company');
+
+            const applicationData = {
+                candidateId: currentUser.uid,
+                companyId: actualJob.companyId || 'UNKNOWN',
+                jobId: jobId,
+                companyName: compName,
+                jobTitle: actualJob.title || 'Job Title',
+                status: 'Applied',
+                candidateData: candidateData, 
+                appliedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection('applications').add(applicationData);
+            document.getElementById('notif-badge').style.display = 'block'; 
+            
+            renderJobs(); // Finally update view
+
+        } catch (error) {
+            console.error("Error applying: ", error);
+        }
     }
 
     function loadAppliedJobs() {
@@ -585,7 +640,7 @@
         });
     }
 
-    // --- Profile Editing Feature (NEW) ---
+    // --- Profile Editing ---
     function loadUserProfile() {
         if(!candidateData) return;
         const container = document.getElementById('profile-details-container');
@@ -640,7 +695,6 @@
 
         try {
             await db.collection('candidates').doc(currentUser.uid).update(updatedData);
-            // Update local object so changes reflect immediately without refresh
             candidateData = { ...candidateData, ...updatedData };
             alert("Profile Updated Successfully!");
         } catch (error) {
@@ -648,7 +702,7 @@
         }
     }
 
-    // --- Fixed PDF Generation & Watermark ---
+    // --- PDF Generation ---
     function generatePDF() {
         if(!candidateData) { alert("Profile data loading, try again."); return; }
         
@@ -658,7 +712,6 @@
         element.style.color = '#333';
         element.style.position = 'relative'; 
 
-        // Watermark Implementation
         const watermark = document.createElement('div');
         watermark.innerText = 'SwipeJobs';
         watermark.style.position = 'absolute';
@@ -667,7 +720,7 @@
         watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
         watermark.style.fontSize = '80px';
         watermark.style.fontWeight = 'bold';
-        watermark.style.color = 'rgba(0, 0, 0, 0.08)'; // Light faint watermark
+        watermark.style.color = 'rgba(0, 0, 0, 0.08)'; 
         watermark.style.zIndex = '0';
         watermark.style.pointerEvents = 'none';
         
@@ -694,7 +747,6 @@
         element.appendChild(watermark);
         element.appendChild(content);
 
-        // Required Options for better PDF rendering
         const opt = {
             margin:       0.5,
             filename:     `${candidateData.name.replace(/\s+/g, '_')}_SwipeJobs_CV.pdf`,
@@ -703,7 +755,6 @@
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
 
-        // Proper Promise implementation for download
         html2pdf().set(opt).from(element).save().then(() => {
             console.log("PDF generated successfully.");
         }).catch(err => {
@@ -726,6 +777,7 @@
         }
     }
 
+    // --- Modals ---
     function openJobModal(jobId) {
         currentJobOnTop = allJobs.find(j => j.id === jobId);
         if(!currentJobOnTop) return;
