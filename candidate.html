@@ -5,183 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwipeJobs - Candidate Portal</title>
     
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-    <!-- Font Awesome for Icons (Optional, makes UI look premium) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
     <style>
         :root { --primary: #ff4b4b; --bg-color: #f4f4f4; --card-bg: #ffffff; --text-dark: #333; --text-light: #777; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
         body { background-color: #e0e0e0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
 
-        /* App Container (Mobile & PC Logic) */
-        .app-container { width: 100%; height: 100vh; background: var(--bg-color); display: flex; flex-direction: column; overflow: hidden; position: relative; }
-        
-        /* PC view optimization */
+        .app-container { width: 100%; height: 100vh; background: var(--bg-color); position: relative; display: flex; flex-direction: column; overflow: hidden; }
         @media (min-width: 768px) {
-            .app-container { width: 420px; height: 90vh; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 8px solid #333; }
+            .app-container { width: 400px; height: 85vh; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         }
 
-        /* Screens Management */
-        .screen { flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 20px; }
+        .screen { display: none; flex-direction: column; height: 100%; width: 100%; padding: 20px; overflow-y: auto; }
         .screen.active { display: flex; }
-        
-        #main-screen { padding: 0; overflow: hidden; } /* Main screen has its own scroll areas */
-        
-        /* 4 Views inside Main Screen */
-        .view-container { flex: 1; overflow-y: auto; position: relative; background: #f9f9f9; }
-        .view { display: none; padding: 20px; height: 100%; }
-        .view.active-view { display: flex; flex-direction: column; }
 
-        /* Bottom Navigation Bar - Fixed at Bottom */
-        .nav-tabs { height: 65px; background: white; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 50; }
-        .nav-tabs .tab { text-align: center; font-size: 11px; color: var(--text-light); cursor: pointer; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .nav-tabs .tab i { font-size: 20px; }
-        .nav-tabs .tab.active-tab { color: var(--primary); font-weight: bold; }
-
-        /* Form Elements */
-        input, button, textarea { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px; outline: none; }
-        input:focus, textarea:focus { border-color: var(--primary); }
+        input, button, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
         button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { background-color: #e03e3e; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
 
-        /* Profile & Settings */
-        .profile-group { margin-bottom: 10px; }
-        .profile-group label { font-size: 12px; color: var(--text-light); margin-bottom: 5px; display: block; font-weight: bold; }
-        .profile-group input, .profile-group textarea { background: #fff; color: var(--text-dark); margin-bottom: 0; }
-        .profile-group input:disabled, .profile-group textarea:disabled { background: #eee; border-color: #ddd; color: #666; }
+        .nav-tabs { display: flex; justify-content: space-around; background: white; padding: 15px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); position: absolute; bottom: 0; width: 100%; z-index: 10; }
+        .nav-tabs span { font-size: 14px; font-weight: bold; color: var(--text-light); cursor: pointer; }
+        .nav-tabs span.active-tab { color: var(--primary); }
 
-        /* Swipe Cards */
-        .swipe-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; }
-        .card { position: absolute; width: 100%; height: 90%; max-height: 500px; background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 25px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.3s ease; user-select: none; }
+        .swipe-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; margin-bottom: 60px; }
+        .card { position: absolute; width: 90%; height: 80%; background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.3s ease; cursor: grab; user-select: none; }
         .company-name { font-size: 24px; font-weight: bold; color: var(--primary); }
-        .job-title { font-size: 18px; margin-bottom: 10px; color: #222; }
-        .job-details { font-size: 14px; color: var(--text-light); margin-bottom: 5px; display: flex; gap: 5px; align-items: center; }
-        
-        .card-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
-        .btn-reject { background: #eee; color: #333; flex: 1; }
-        .btn-apply { background: var(--primary); flex: 1; }
+        .job-title { font-size: 18px; margin-bottom: 10px; }
+        .job-details { font-size: 14px; color: var(--text-light); margin-bottom: 5px; }
 
-        /* List Items (Applied & Search) */
-        .list-item { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid var(--primary); }
-        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #d4edda; color: #155724; margin-top: 8px; }
+        .card-actions { display: flex; justify-content: space-between; gap: 10px; }
+        .btn-reject { background: #ccc; color: black; }
+        .btn-apply { background: var(--primary); }
 
-        /* Modals (Registration & Job Details) */
         .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 90%; max-height: 90%; border-radius: 15px; padding: 20px; overflow-y: auto; position: relative; }
-        .close-modal { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; color: #555; }
+        .close-modal { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; font-weight: bold; }
+
+        .applied-item { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #d4edda; color: #155724; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    
-    <!-- AUTH SCREEN -->
-    <div id="auth-screen" class="screen active" style="justify-content: center;">
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: var(--primary); font-size: 38px;"><i class="fa-solid fa-fire"></i> SwipeJobs</h1>
-            <p style="color: var(--text-light);">Find your dream job instantly</p>
-        </div>
+    <div id="auth-screen" class="screen active">
+        <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 32px;">SwipeJobs</h2>
+        <h3>Login</h3>
+        <p style="margin-bottom: 20px; font-size: 14px; color: #777;">Welcome back! Please login.</p>
         
         <input type="email" id="login-email" placeholder="Email ID">
         <input type="password" id="login-pass" placeholder="Password">
         <button onclick="login()">Login</button>
         
-        <div style="text-align: center; margin: 20px 0; color: #aaa;">OR</div>
-        <button onclick="openRegisterModal()" style="background: #2c3e50;">Create New Account</button>
+        <hr style="margin: 20px 0; border: 0.5px solid #ddd;">
+        <p style="text-align: center; margin-bottom: 10px;">Don't have an account?</p>
+        <button onclick="openRegisterModal()" style="background: #333;">New Registration</button>
     </div>
 
-    <!-- REGISTRATION POPUP MODAL -->
     <div id="register-modal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="closeRegisterModal()"><i class="fa-solid fa-xmark"></i></span>
-            <h2 style="color: var(--primary); margin-bottom: 5px;">Candidate Profile</h2>
-            <p style="font-size: 12px; color: #777; margin-bottom: 15px;">Mandatory details for recruiters.</p>
+            <span class="close-modal" onclick="closeRegisterModal()">✖</span>
+            <h2 style="color: var(--primary); margin-bottom: 5px;">Create Profile</h2>
+            <p style="font-size: 12px; color: #777; margin-bottom: 15px;">All details are mandatory for job applications.</p>
             
             <input type="email" id="reg-email" placeholder="Email ID *">
             <input type="password" id="reg-pass" placeholder="Password *">
             <input type="text" id="reg-name" placeholder="Full Name *">
-            <input type="tel" id="reg-mobile" placeholder="Mobile Number *">
-            <input type="text" id="reg-city" placeholder="City / Location *">
-            <input type="text" id="reg-exp" placeholder="Experience (e.g. 2 Years / Fresher) *">
-            <input type="text" id="reg-resume" placeholder="Google Drive Resume Link (PDF) *">
-            <textarea id="reg-bio" placeholder="Skills & Bio *" rows="3"></textarea>
+            <input type="text" id="reg-exp" placeholder="Experience (e.g. 2 Years) *">
+            <input type="text" id="reg-resume" placeholder="Google Drive Resume Link *">
+            <textarea id="reg-bio" placeholder="Skills & Basic Details *" rows="3"></textarea>
             
-            <button onclick="registerNewCandidate()">Register & Start Swiping</button>
+            <button onclick="registerNewCandidate()">Register & Enter App</button>
         </div>
     </div>
 
-    <!-- MAIN APP SCREEN (WITH 4 VIEWS + BOTTOM NAV) -->
-    <div id="main-screen" class="screen">
-        
-        <!-- View Container holding all 4 tabs -->
-        <div class="view-container">
-            
-            <!-- 1. SWIPE VIEW -->
-            <div id="view-swipe" class="view active-view">
-                <div class="swipe-area" id="swipe-area">
-                    <!-- Cards injected via JS -->
-                </div>
+    <div id="main-screen" class="screen" style="padding: 0;">
+        <div id="view-swipe" class="view" style="height: 100%; display: flex; flex-direction: column;">
+            <div style="padding: 15px;">
+                <input type="text" class="search-bar" placeholder="Search Jobs (e.g. Developer)...">
             </div>
-
-            <!-- 2. SEARCH VIEW -->
-            <div id="view-search" class="view">
-                <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-magnifying-glass"></i> Search Jobs</h3>
-                <input type="text" id="search-input" placeholder="Search by title or company..." onkeyup="searchJobs()">
-                <div id="search-results" style="margin-top: 10px;"></div>
-            </div>
-
-            <!-- 3. STATUS VIEW -->
-            <div id="view-applied" class="view">
-                <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-check-circle"></i> Application Status</h3>
-                <div id="applied-list"></div>
-            </div>
-
-            <!-- 4. PROFILE VIEW -->
-            <div id="view-profile" class="view">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3><i class="fa-solid fa-user"></i> My Profile</h3>
-                    <button id="btn-edit" onclick="toggleEditMode()" style="width: auto; padding: 8px 15px; margin: 0; background: #2c3e50;"><i class="fa-solid fa-pen"></i> Edit</button>
-                </div>
-                
-                <div class="profile-group"><label>Full Name</label><input type="text" id="p-name" disabled></div>
-                <div class="profile-group"><label>Mobile Number</label><input type="tel" id="p-mobile" disabled></div>
-                <div class="profile-group"><label>City</label><input type="text" id="p-city" disabled></div>
-                <div class="profile-group"><label>Experience</label><input type="text" id="p-exp" disabled></div>
-                <div class="profile-group"><label>Resume Link</label><input type="text" id="p-resume" disabled></div>
-                <div class="profile-group"><label>Skills & Bio</label><textarea id="p-bio" rows="4" disabled></textarea></div>
-                
-                <button id="btn-save" onclick="saveProfileChanges()" style="display: none; margin-top: 15px;">Save Changes</button>
-                <button onclick="logout()" style="background: #e74c3c; margin-top: 20px;">Logout</button>
-            </div>
+            <div class="swipe-area" id="swipe-area"></div>
         </div>
 
-        <!-- ALWAYS VISIBLE BOTTOM NAV BAR -->
+        <div id="view-applied" class="view" style="height: 100%; display: none; padding: 15px; overflow-y: auto; margin-bottom: 60px;">
+            <h2>Applied Jobs Status</h2>
+            <br>
+            <div id="applied-list"></div>
+        </div>
+
         <div class="nav-tabs">
-            <div class="tab active-tab" id="tab-swipe" onclick="switchTab('swipe')">
-                <i class="fa-solid fa-clone"></i><span>Swipe</span>
-            </div>
-            <div class="tab" id="tab-search" onclick="switchTab('search')">
-                <i class="fa-solid fa-magnifying-glass"></i><span>Search</span>
-            </div>
-            <div class="tab" id="tab-applied" onclick="switchTab('applied')">
-                <i class="fa-solid fa-briefcase"></i><span>Status</span>
-            </div>
-            <div class="tab" id="tab-profile" onclick="switchTab('profile')">
-                <i class="fa-solid fa-user"></i><span>Profile</span>
-            </div>
+            <span class="active-tab" id="tab-swipe" onclick="switchTab('swipe')">Swipe Jobs</span>
+            <span id="tab-applied" onclick="switchTab('applied')">Applied Status</span>
         </div>
     </div>
+
+    <div id="job-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeJobModal()">✖</span>
+            <h2 id="m-company" class="company-name">Company</h2>
+            <h3 id="m-title" class="job-title">Job Title</h3>
+            <hr style="margin: 10px 0;">
+            <p><strong>Vacancies:</strong> <span id="m-vacancy"></span></p>
+            <p><strong>Salary:</strong> <span id="m-salary"></span></p>
+            <br>
+            <h4>Job Description:</h4>
+            <p id="m-desc" style="font-size: 14px; color: var(--text-light); margin-top: 5px;"></p>
+            <br>
+            <button class="btn-apply" onclick="applyFromModal()">Apply Now</button>
+        </div>
+    </div>
+
 </div>
 
 <script>
-    // 1. FIREBASE CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
         authDomain: "swipejobs-a5317.firebaseapp.com",
@@ -196,228 +135,150 @@
     const db = firebase.firestore();
 
     let currentUser = null;
+    let currentJobOnTop = null;
     let allJobs = [];
 
-    // 2. AUTHENTICATION LOGIC
     function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
     function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
 
     function registerNewCandidate() {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
-        const data = {
-            name: document.getElementById('reg-name').value,
-            mobile: document.getElementById('reg-mobile').value,
-            city: document.getElementById('reg-city').value,
-            experience: document.getElementById('reg-exp').value,
-            resumeLink: document.getElementById('reg-resume').value,
-            bio: document.getElementById('reg-bio').value,
-            email: email
-        };
+        const name = document.getElementById('reg-name').value;
+        const exp = document.getElementById('reg-exp').value;
+        const resume = document.getElementById('reg-resume').value;
+        const bio = document.getElementById('reg-bio').value;
 
-        if(!email || !pass || !data.name || !data.mobile || !data.resumeLink) {
-            alert("Please fill all mandatory fields!"); return;
+        if(!email || !pass || !name || !exp || !resume || !bio) {
+            alert("Please fill all details!"); return;
         }
 
-        auth.createUserWithEmailAndPassword(email, pass).then(userCred => {
-            return db.collection('candidates').doc(userCred.user.uid).set(data);
-        }).then(() => {
-            closeRegisterModal();
-            alert("Account Created! Welcome to SwipeJobs.");
-        }).catch(err => alert(err.message));
+        auth.createUserWithEmailAndPassword(email, pass)
+            .then(userCred => {
+                const uid = userCred.user.uid;
+                return db.collection('candidates').doc(uid).set({
+                    name: name, experience: exp, resumeLink: resume, bio: bio, email: email
+                });
+            })
+            .then(() => {
+                alert("Account Created Successfully!");
+                closeRegisterModal();
+                showScreen('main-screen');
+                fetchLiveJobs();
+            })
+            .catch(err => alert(err.message));
     }
 
     function login() {
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-pass').value;
-        if(!email || !pass) { alert("Enter email and password"); return; }
         auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
     }
-
-    function logout() { auth.signOut(); }
 
     auth.onAuthStateChanged(user => {
         if (user) {
             currentUser = user;
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('main-screen').classList.add('active');
-            
+            showScreen('main-screen');
             fetchLiveJobs();
             loadAppliedJobs();
-            loadProfileData(); // Load data for profile tab
         } else {
-            currentUser = null;
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('auth-screen').classList.add('active');
+            showScreen('auth-screen');
         }
     });
 
-    // 3. NAVIGATION TABS LOGIC
-    function switchTab(tabName) {
-        // Hide all views, remove active from all tabs
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
-        document.querySelectorAll('.nav-tabs .tab').forEach(t => t.classList.remove('active-tab'));
-        
-        // Show selected
-        document.getElementById(`view-${tabName}`).classList.add('active-view');
-        document.getElementById(`tab-${tabName}`).classList.add('active-tab');
-
-        // Render search list completely if search tab is clicked
-        if(tabName === 'search') { searchJobs(); }
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
     }
 
-    // 4. LOAD & EDIT PROFILE DATA
-    function loadProfileData() {
-        if(!currentUser) return;
-        db.collection('candidates').doc(currentUser.uid).get().then(doc => {
-            if(doc.exists) {
-                const data = doc.data();
-                document.getElementById('p-name').value = data.name || '';
-                document.getElementById('p-mobile').value = data.mobile || '';
-                document.getElementById('p-city').value = data.city || '';
-                document.getElementById('p-exp').value = data.experience || '';
-                document.getElementById('p-resume').value = data.resumeLink || '';
-                document.getElementById('p-bio').value = data.bio || '';
-            }
-        });
+    function switchTab(tab) {
+        document.getElementById('view-swipe').style.display = tab === 'swipe' ? 'flex' : 'none';
+        document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
+        document.getElementById('tab-swipe').classList.toggle('active-tab', tab === 'swipe');
+        document.getElementById('tab-applied').classList.toggle('active-tab', tab === 'applied');
     }
 
-    function toggleEditMode() {
-        const isDisabled = document.getElementById('p-name').disabled;
-        const fields = ['p-name', 'p-mobile', 'p-city', 'p-exp', 'p-resume', 'p-bio'];
-        
-        fields.forEach(id => { document.getElementById(id).disabled = !isDisabled; });
-        
-        if (isDisabled) {
-            // Enable editing
-            document.getElementById('btn-save').style.display = 'block';
-            document.getElementById('btn-edit').innerHTML = '<i class="fa-solid fa-xmark"></i> Cancel';
-            document.getElementById('btn-edit').style.background = '#e74c3c';
-        } else {
-            // Cancel editing (revert)
-            document.getElementById('btn-save').style.display = 'none';
-            document.getElementById('btn-edit').innerHTML = '<i class="fa-solid fa-pen"></i> Edit';
-            document.getElementById('btn-edit').style.background = '#2c3e50';
-            loadProfileData(); // reload original data
-        }
-    }
-
-    function saveProfileChanges() {
-        const btn = document.getElementById('btn-save');
-        btn.innerText = "Saving..."; btn.disabled = true;
-
-        const data = {
-            name: document.getElementById('p-name').value,
-            mobile: document.getElementById('p-mobile').value,
-            city: document.getElementById('p-city').value,
-            experience: document.getElementById('p-exp').value,
-            resumeLink: document.getElementById('p-resume').value,
-            bio: document.getElementById('p-bio').value
-        };
-
-        db.collection('candidates').doc(currentUser.uid).update(data).then(() => {
-            alert("Profile Updated Successfully!");
-            btn.innerText = "Save Changes"; btn.disabled = false;
-            toggleEditMode(); // Lock fields again
-        }).catch(err => { alert(err.message); btn.innerText = "Save Changes"; btn.disabled = false; });
-    }
-
-    // 5. FETCH & RENDER JOBS (SWIPE FEED)
     function fetchLiveJobs() {
         db.collection('jobs').where('status', '==', 'Approved').get().then(snap => {
             allJobs = [];
-            snap.forEach(doc => { let j = doc.data(); j.id = doc.id; allJobs.push(j); });
-            renderSwipeCards();
-        });
+            snap.forEach(doc => {
+                let jobData = doc.data();
+                jobData.id = doc.id;
+                allJobs.push(jobData);
+            });
+            renderJobs(allJobs);
+        }).catch(err => console.log("Error fetching jobs: ", err));
     }
 
-    function renderSwipeCards() {
+    function renderJobs(jobsArray) {
         const swipeArea = document.getElementById('swipe-area');
         swipeArea.innerHTML = ''; 
-        if(allJobs.length === 0) { swipeArea.innerHTML = '<p>No new jobs available.</p>'; return; }
+        
+        if(jobsArray.length === 0) {
+            swipeArea.innerHTML = '<p style="color:#777;">No new jobs available right now.</p>';
+            return;
+        }
 
-        for (let i = allJobs.length - 1; i >= 0; i--) {
-            const job = allJobs[i];
-            const compName = job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'COMPANY';
+        for (let i = jobsArray.length - 1; i >= 0; i--) {
+            const job = jobsArray[i];
             const card = document.createElement('div');
             card.className = 'card';
             card.id = 'card-' + job.id;
-            card.style.transform = `scale(${1 - i*0.04}) translateY(${i*12}px)`;
-            card.style.zIndex = allJobs.length - i;
+            card.style.transform = `scale(${1 - i*0.05}) translateY(${i*10}px)`;
+            card.style.zIndex = jobsArray.length - i;
             
+            const compName = job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'Company';
+
             card.innerHTML = `
-                <div>
+                <div onclick="openJobModal('${job.id}')" style="flex:1; cursor:pointer;">
                     <div class="company-name">${compName}</div>
                     <div class="job-title">${job.title}</div>
-                    <hr style="margin:10px 0; border:0.5px solid #eee;">
-                    <div class="job-details"><i class="fa-solid fa-indian-rupee-sign"></i> Salary: ${job.salary}</div>
-                    <div class="job-details"><i class="fa-solid fa-users"></i> Vacancies: ${job.vacancy}</div>
-                    <div class="job-details" style="margin-top:10px; color:#555;"><b>Description:</b> <br> ${job.desc}</div>
+                    <div class="job-details">Salary: ${job.salary}</div>
+                    <div class="job-details">Vacancies: ${job.vacancy}</div>
+                    <p style="margin-top:20px; color:var(--text-light); font-size:12px;">(Click card to see full details)</p>
                 </div>
                 <div class="card-actions">
-                    <button class="btn-reject" onclick="swipeAction('${job.id}', 'left')">✖ Skip</button>
-                    <button class="btn-apply" onclick="swipeAction('${job.id}', 'right')">✔ Apply</button>
+                    <button class="btn-reject" onclick="swipeCard('${job.id}', 'left')">✖ Reject</button>
+                    <button class="btn-apply" onclick="swipeCard('${job.id}', 'right')">✔ Apply</button>
                 </div>
             `;
             swipeArea.appendChild(card);
         }
     }
 
-    function swipeAction(jobId, direction) {
+    function swipeCard(jobId, direction) {
         const card = document.getElementById('card-' + jobId);
         if (!card) return;
         
-        card.style.transform = direction === 'right' ? `translateX(150%) rotate(30deg)` : `translateX(-150%) rotate(-30deg)`;
-        card.style.opacity = '0';
+        if (direction === 'right') {
+            card.style.transform = `translateX(150%) rotate(30deg)`;
+            applyForJob(jobId);
+        } else {
+            card.style.transform = `translateX(-150%) rotate(-30deg)`;
+        }
         
-        if (direction === 'right') { applyForJob(jobId); }
+        card.style.opacity = '0';
         setTimeout(() => { card.remove(); }, 300);
     }
 
-    // 6. SEARCH JOBS LOGIC
-    function searchJobs() {
-        const query = document.getElementById('search-input').value.toLowerCase();
-        const resultsDiv = document.getElementById('search-results');
-        resultsDiv.innerHTML = '';
-
-        const filtered = allJobs.filter(j => 
-            j.title.toLowerCase().includes(query) || 
-            (j.companyEmail && j.companyEmail.toLowerCase().includes(query))
-        );
-
-        if(filtered.length === 0) { resultsDiv.innerHTML = '<p>No jobs found.</p>'; return; }
-
-        filtered.forEach(job => {
-            const compName = job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'Company';
-            resultsDiv.innerHTML += `
-                <div class="list-item">
-                    <div class="job-title" style="margin-bottom:2px; font-size:16px;">${job.title}</div>
-                    <div style="font-size:12px; color:var(--primary); font-weight:bold; margin-bottom:8px;">${compName}</div>
-                    <div style="font-size:13px; color:#666;">💰 ${job.salary} | 👥 Vacancy: ${job.vacancy}</div>
-                    <button onclick="applyForJob('${job.id}'); this.innerText='Applied'; this.disabled=true;" style="margin-top:10px; padding:8px; font-size:14px;">Apply Now</button>
-                </div>
-            `;
-        });
-    }
-
-    // 7. APPLY & STATUS LOGIC
     function applyForJob(jobId) {
         const job = allJobs.find(j => j.id === jobId);
         if(!job) return;
 
-        db.collection('applications').add({
+        const compName = job.companyEmail ? job.companyEmail.split('@')[0] : 'Company';
+
+        const applicationData = {
             candidateId: currentUser.uid,
+            candidateEmail: currentUser.email,
             companyId: job.companyId,
             jobId: job.id,
-            companyName: job.companyEmail ? job.companyEmail.split('@')[0] : 'Company',
+            companyName: compName,
             jobTitle: job.title,
             status: 'Applied (Under Review)',
             appliedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => {
-            // Remove from swipe deck if applied from search
-            const card = document.getElementById('card-' + jobId);
-            if(card) { card.style.display = 'none'; }
-        });
+        };
+
+        db.collection('applications').add(applicationData);
     }
 
     function loadAppliedJobs() {
@@ -426,20 +287,44 @@
           .onSnapshot(snapshot => {
             const list = document.getElementById('applied-list');
             list.innerHTML = '';
-            
-            if(snapshot.empty) { list.innerHTML = '<p>No applications yet.</p>'; return; }
-
             snapshot.forEach(doc => {
                 const data = doc.data();
+                const safeCompName = data.companyName ? data.companyName.toUpperCase() : 'UNKNOWN';
                 list.innerHTML += `
-                    <div class="list-item">
-                        <div class="job-title" style="margin-bottom:2px; font-size:16px;">${data.jobTitle}</div>
-                        <div style="font-size:12px; font-weight:bold; color:#555;">${data.companyName.toUpperCase()}</div>
+                    <div class="applied-item">
+                        <div class="company-name" style="font-size:18px;">${safeCompName}</div>
+                        <div class="job-title" style="font-size:14px;">${data.jobTitle}</div>
                         <div class="status-badge">${data.status}</div>
                     </div>
                 `;
             });
         });
+    }
+
+    function openJobModal(jobId) {
+        currentJobOnTop = allJobs.find(j => j.id === jobId);
+        if(!currentJobOnTop) return;
+
+        const compName = currentJobOnTop.companyEmail ? currentJobOnTop.companyEmail.split('@')[0].toUpperCase() : 'Company';
+
+        document.getElementById('m-company').innerText = compName;
+        document.getElementById('m-title').innerText = currentJobOnTop.title;
+        document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy;
+        document.getElementById('m-salary').innerText = currentJobOnTop.salary;
+        document.getElementById('m-desc').innerText = currentJobOnTop.desc;
+
+        document.getElementById('job-modal').style.display = 'flex';
+    }
+
+    function closeJobModal() {
+        document.getElementById('job-modal').style.display = 'none';
+    }
+
+    function applyFromModal() {
+        if(currentJobOnTop) {
+            swipeCard(currentJobOnTop.id, 'right');
+            closeJobModal();
+        }
     }
 </script>
 </body>
