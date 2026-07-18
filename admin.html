@@ -24,12 +24,11 @@
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; gap: 10px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
         
-        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; margin-bottom: 10px; }
         button { background: var(--admin); color: white; border: none; cursor: pointer; font-weight: bold; }
         .btn-success { background: #27ae60; }
         .btn-danger { background: #c0392b; }
 
-        /* Responsive */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; }
@@ -41,7 +40,6 @@
 </head>
 <body>
 
-    <!-- Admin Login Screen -->
     <div id="auth-screen" class="main-content" style="display: flex; justify-content: center; align-items: center;">
         <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
             <h2 style="color: var(--admin); margin-bottom: 15px;">Admin Gateway</h2>
@@ -51,7 +49,6 @@
         </div>
     </div>
 
-    <!-- Admin Dashboard Sidebar -->
     <div class="sidebar" id="sidebar" style="display: none;">
         <h2>Admin Panel</h2>
         <div class="nav-item active" onclick="nav('job-approvals')">Job Approvals</div>
@@ -60,28 +57,22 @@
         <div class="nav-item" onclick="nav('all-applications')">Application Logs</div>
     </div>
 
-    <!-- Admin Dashboard Content -->
     <div class="main-content" id="dashboard" style="display: none;">
-        
-        <!-- 1. Job Approvals -->
         <div id="job-approvals" class="screen active">
             <h2>Pending Job Reviews</h2><br>
             <div id="pending-jobs" class="grid-3"></div>
         </div>
 
-        <!-- 2. Manage Companies & Billing -->
         <div id="manage-companies" class="screen">
             <h2>Registered Companies & Billing</h2><br>
             <div id="companies-list"></div>
         </div>
 
-        <!-- 3. Candidates -->
         <div id="all-candidates" class="screen">
             <h2>Candidate Database</h2><br>
             <div id="candidates-list" class="grid-3"></div>
         </div>
 
-        <!-- 4. Application Logs -->
         <div id="all-applications" class="screen">
             <h2>Platform Application Logs</h2><br>
             <div id="applications-list"></div>
@@ -89,15 +80,14 @@
     </div>
 
 <script>
-    // Initialize Firebase (Same Config)
     const firebaseConfig = {
-  apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
-  authDomain: "swipejobs-a5317.firebaseapp.com",
-  projectId: "swipejobs-a5317",
-  storageBucket: "swipejobs-a5317.firebasestorage.app",
-  messagingSenderId: "916910145870",
-  appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
-                                                        };
+      apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
+      authDomain: "swipejobs-a5317.firebaseapp.com",
+      projectId: "swipejobs-a5317",
+      storageBucket: "swipejobs-a5317.firebasestorage.app",
+      messagingSenderId: "916910145870",
+      appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+    };
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const auth = firebase.auth(); const db = firebase.firestore();
 
@@ -109,28 +99,17 @@
     }
 
     function loginAdmin() {
-    const email = document.getElementById('a-email').value;
-    const pass = document.getElementById('a-pass').value;
-
-    // Yahan apna wo email likhein jo aapne Firebase console mein banaya hai
-    const myAdminEmail = "admin1@gmail.com"; 
-
-    if (email !== myAdminEmail) {
-        alert("Access Denied: Aap Admin nahi hain!");
-        return;
+        const email = document.getElementById('a-email').value;
+        const pass = document.getElementById('a-pass').value;
+        auth.signInWithEmailAndPassword(email, pass).then(cred => {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'block';
+            loadAdminData();
+        }).catch(err => alert("Access Denied: " + err.message));
     }
 
-    auth.signInWithEmailAndPassword(email, pass).then(cred => {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('sidebar').style.display = 'flex';
-        document.getElementById('dashboard').style.display = 'block';
-        loadAdminData();
-    }).catch(err => alert("Access Denied: " + err.message));
-            }
-    
-
     function loadAdminData() {
-        // 1. Pending Jobs
         db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
             const list = document.getElementById('pending-jobs');
             list.innerHTML = '';
@@ -138,7 +117,7 @@
                 const j = doc.data();
                 list.innerHTML += `<div class="card">
                     <h3>${j.title}</h3>
-                    <p>Company ID: ${j.companyId}</p>
+                    <p>Company: ${j.companyEmail || j.companyId}</p>
                     <p>Desc: ${j.desc}</p>
                     <div style="display:flex; gap:10px;">
                         <button class="btn-success" onclick="updateJob('${doc.id}', 'Approved')">Approve</button>
@@ -148,22 +127,21 @@
             });
         });
 
-        // 2. Companies & Billing
         db.collection('companies').onSnapshot(snap => {
             const list = document.getElementById('companies-list');
             list.innerHTML = '';
             snap.forEach(doc => {
                 const c = doc.data();
-                list.innerHTML += `<div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                list.innerHTML += `<div class="card" style="display:flex; flex-direction:column; gap:10px;">
                     <div>
                         <h3>${c.email}</h3>
                         <p>Current Plan: <b>${c.planType || 'free'}</b></p>
                     </div>
-                    <div style="display:flex; gap:10px;">
+                    <div>
                         <select id="plan-${doc.id}">
-                            <option value="free">Free Forever</option>
-                            <option value="per_post">Pay Per Post</option>
-                            <option value="subscription">Monthly Sub</option>
+                            <option value="free" ${c.planType === 'free' ? 'selected' : ''}>Free Forever</option>
+                            <option value="per_post" ${c.planType === 'per_post' ? 'selected' : ''}>Pay Per Post</option>
+                            <option value="subscription" ${c.planType === 'subscription' ? 'selected' : ''}>Monthly Sub</option>
                         </select>
                         <button onclick="updateBilling('${doc.id}')">Update Billing</button>
                     </div>
@@ -171,7 +149,6 @@
             });
         });
 
-        // 3. Candidates
         db.collection('candidates').onSnapshot(snap => {
             const list = document.getElementById('candidates-list');
             list.innerHTML = '';
@@ -179,28 +156,27 @@
                 const c = doc.data();
                 list.innerHTML += `<div class="card">
                     <h3>${c.name}</h3>
+                    <p>Email: ${c.email}</p>
                     <p>Exp: ${c.experience}</p>
                     <a href="${c.resumeLink}" target="_blank">View Resume</a>
                 </div>`;
             });
         });
 
-        // 4. Applications (Who applied where)
         db.collection('applications').onSnapshot(snap => {
             const list = document.getElementById('applications-list');
             list.innerHTML = '';
             snap.forEach(doc => {
                 const a = doc.data();
                 list.innerHTML += `<div class="card">
-                    <b>Candidate ID:</b> ${a.candidateId} <br>
-                    <b>Applied To (Company ID):</b> ${a.companyId} <br>
+                    <b>Candidate:</b> ${a.candidateEmail || a.candidateId} <br>
+                    <b>Applied To:</b> ${a.companyName || a.companyId} <br>
                     <b>Job Title:</b> ${a.jobTitle}
                 </div>`;
             });
         });
     }
 
-    // Action Functions
     function updateJob(jobId, status) {
         db.collection('jobs').doc(jobId).update({ status: status });
     }
