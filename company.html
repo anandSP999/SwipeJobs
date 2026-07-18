@@ -137,7 +137,6 @@
     <div class="main-container">
         <div class="main-content" id="app-window" style="display: none;">
             
-            <!-- Support Helpdesk -->
             <div class="support-fab" onclick="toggleSupportPanel()"><i class="fa-solid fa-headset" style="font-size: 24px;"></i></div>
             <div class="support-panel" id="support-panel">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
@@ -154,7 +153,6 @@
                 </a>
             </div>
 
-            <!-- DASHBOARD -->
             <div id="dashboard-panel" class="screen active">
                 <h2>Portal Overview</h2>
                 <div id="profile-warning" class="billing-banner" style="display:none; background: #FEF2F2; color: #991B1B; border-color: #EF4444;">
@@ -168,7 +166,6 @@
                 </div>
             </div>
 
-            <!-- COMPANY PROFILE -->
             <div id="company-profile" class="screen">
                 <h2>Company Profile Setup</h2>
                 <div class="card">
@@ -180,7 +177,6 @@
                 </div>
             </div>
 
-            <!-- POST JOB -->
             <div id="post-job" class="screen">
                 <h2>Launch Position Listing</h2>
                 <div id="billing-warning" class="billing-banner" style="display:none;">
@@ -200,19 +196,16 @@
                 </div>
             </div>
 
-            <!-- MY JOBS -->
             <div id="my-jobs" class="screen">
                 <h2>Corporate Job Postings</h2>
                 <div id="job-list"></div>
             </div>
 
-            <!-- APPLICANTS -->
             <div id="applicants" class="screen">
                 <h2>Incoming Professional Pipelines</h2>
                 <div id="applicant-list"></div>
             </div>
 
-            <!-- BILLING -->
             <div id="billing" class="screen">
                 <h2>Account Plan Status</h2>
                 <div class="card">
@@ -223,7 +216,6 @@
                 </div>
             </div>
 
-            <!-- ADMIN CONSOLE -->
             <div id="admin-panel" class="screen">
                 <h2>Admin Console</h2>
                 <div class="card">
@@ -345,7 +337,7 @@
     let currentCompany = null;
     let cachedCompanyProfile = null;
     const UPI_ID = "8866653002@Kotakbank";
-    let activeShareData = { text: '', link: '' }; // Global store for Share logic
+    let activeShareData = { text: '', link: '' }; 
 
     function toggleSupportPanel() {
         const panel = document.getElementById('support-panel');
@@ -505,7 +497,6 @@
                 const j = doc.data();
                 const statusBadge = j.status === 'Approved' ? 'badge-approved' : (j.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
                 
-                // Escape strings for safe HTML JS binding
                 const escTitle = j.title ? j.title.replace(/'/g, "\\'") : '';
                 const escCity = j.city ? j.city.replace(/'/g, "\\'") : '';
                 const escState = j.state ? j.state.replace(/'/g, "\\'") : '';
@@ -532,11 +523,12 @@
         });
     }
 
-    // --- AI JOB SHARE SYSTEM INTEGRATION ---
+    // --- UPDATED AI JOB SHARE LOGIC (Targeting your specific Candidate Link) ---
     function openJobShareUI(jobId, title, city, state, salary, vacancy) {
         const compName = cachedCompanyProfile.companyName || 'Our Company';
-        // Unique candidate routing link structure (Candidate Portal logic will handle this)
-        const jobLink = `https://swipejobs.com/candidate/job.html?id=${jobId}`; 
+        
+        // Exact Candidate Website URL as requested
+        const jobLink = `https://anandsp999.github.io/SwipeJobs/candidate?jobId=${jobId}`; 
         
         const aiWrittenText = `🚀 Hiring Alert: ${title}!\n\n🏢 Company: ${compName}\n📍 Location: ${city}, ${state}\n💼 Salary Structure: ${salary}\n👥 Open Positions: ${vacancy}\n\nWe are looking for talented professionals to join our growing team. Experience a seamless hiring process with us.\n\n👉 Click here to view details and apply (Login required to apply):\n🔗 ${jobLink}`;
         
