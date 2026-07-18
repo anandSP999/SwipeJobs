@@ -164,7 +164,7 @@
                 </div>
             </div>
 
-            <!-- 2. Job Approvals (Pending Only) -->
+            <!-- 2. Job Approvals (Pending Only) - NOW WITH FULL DETAILS -->
             <div id="job-approvals" class="screen">
                 <h2 style="margin-bottom: 15px;">Pending Job Reviews</h2>
                 <div id="pending-jobs" class="grid-3">
@@ -191,7 +191,7 @@
             <div id="manage-companies" class="screen">
                 <h2 style="margin-bottom: 15px;">Registered Companies</h2>
                 
-                <!-- NEW: Filter Dropdown -->
+                <!-- Filter Dropdown -->
                 <select id="company-plan-filter" onchange="renderCompanies()" style="max-width: 250px; margin-bottom: 15px;">
                     <option value="all">View All Plans</option>
                     <option value="free">Free Plan</option>
@@ -317,8 +317,8 @@
     }
 
     let activeListeners = [];
-    window.companiesDataList = []; // New array to store companies for filtering
-    window.companiesMap = {}; // Global cache for company details
+    window.companiesDataList = []; 
+    window.companiesMap = {}; 
 
     // --- UI Helpers ---
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
@@ -449,35 +449,25 @@
         const c = window.companiesMap[id];
         if(!c) return;
 
-        // Set Plan Settings
         document.getElementById('modal-cid').value = id;
         document.getElementById('modal-plan').value = c.planType || 'free';
         document.getElementById('modal-price').value = c.pricePerPost || c.monthlyPrice || 0;
         document.getElementById('modal-status').value = c.status || 'active';
         
-        // Dynamically loop through ALL filled properties of the company
         let detailsHtml = '';
-        
-        // Fields we don't want to show in the read-only block because they are managed via inputs below
         const ignoreKeys = ['planType', 'pricePerPost', 'monthlyPrice', 'status', 'totalPostsUsed', 'totalPaid', 'id'];
         
-        // Prioritize Name, Email, and Phone at the top
         detailsHtml += `<p><b>Name:</b> ${c.name || c.companyName || 'N/A'}</p>`;
         detailsHtml += `<p><b>Email:</b> ${c.email || 'N/A'}</p>`;
         detailsHtml += `<p><b>Contact No:</b> <span style="color:var(--admin); font-weight:bold;">${c.phone || c.contactNumber || c.mobile || 'No contact provided'}</span></p>`;
         
-        // Loop through all remaining keys dynamically
         for(let key in c) {
             if(!ignoreKeys.includes(key) && key !== 'name' && key !== 'companyName' && key !== 'email' && key !== 'phone' && key !== 'contactNumber' && key !== 'mobile') {
                 let val = c[key];
-                // Format timestamps if any
                 if(val && typeof val === 'object' && val.toDate) {
                     val = new Date(val.toDate()).toLocaleDateString();
                 }
-                
-                // Format Key to Title Case (e.g., companyAddress -> CompanyAddress)
                 let formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
-                
                 if (val && typeof val !== 'object') {
                     detailsHtml += `<p><b>${formattedKey}:</b> ${val}</p>`;
                 }
@@ -538,7 +528,7 @@
         });
     }
 
-    // --- Pending Jobs ---
+    // --- Pending Jobs (NOW WITH FULL DYNAMIC DETAILS) ---
     function loadPendingJobs() {
         const unsub = db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
             const list = document.getElementById('pending-jobs');
@@ -555,10 +545,31 @@
 
             snap.forEach(doc => {
                 const j = doc.data();
-                list.innerHTML += `<div class="card">
-                    <h3 style="color:var(--admin); margin-bottom:10px;">${j.title || 'Untitled'}</h3>
-                    <p style="font-size:14px; margin-bottom:5px;"><b>Company:</b> ${j.companyEmail || j.companyId || 'N/A'}</p>
-                    <p style="font-size:14px; margin-bottom:15px; color:#555;"><b>Desc:</b> ${j.desc || 'No description'}</p>
+                
+                // Dynamically fetch ALL fields inside the job document
+                let extraDetailsHtml = '';
+                const hideKeys = ['title', 'status', 'companyEmail', 'companyId']; // Keys to ignore from loop
+                
+                for(let key in j) {
+                    if(!hideKeys.includes(key)) {
+                        let val = j[key];
+                        if (val && typeof val !== 'object') {
+                            // Formatting key name (e.g. maxSalary -> Max Salary)
+                            let formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
+                            extraDetailsHtml += `<p style="font-size:13px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid #e0e0e0;"><b>${formattedKey}:</b> ${val}</p>`;
+                        }
+                    }
+                }
+
+                list.innerHTML += `<div class="card" style="border-top: 4px solid var(--admin);">
+                    <h3 style="color:var(--admin); margin-bottom:5px;">${j.title || 'Untitled'}</h3>
+                    <p style="font-size:13px; margin-bottom:15px; font-weight:bold; color: #2c3e50;">Company: ${j.companyEmail || j.companyId || 'N/A'}</p>
+                    
+                    <!-- Scrollable box for all dynamic job fields -->
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 15px; max-height: 220px; overflow-y: auto; border: 1px solid #eee;">
+                        ${extraDetailsHtml || '<p style="font-size:13px; color:#888;">No additional details provided.</p>'}
+                    </div>
+
                     <input type="text" id="rej-${doc.id}" placeholder="Reason for rejection (if any)...">
                     <div class="btn-group">
                         <button class="btn-success" onclick="approveJob('${doc.id}', '${j.companyId}')">Approve</button>
