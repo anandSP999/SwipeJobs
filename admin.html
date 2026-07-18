@@ -79,7 +79,7 @@
         
         /* Info blocks inside modals */
         .info-block { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--admin); }
-        .info-block p { margin-bottom: 5px; font-size: 14px; }
+        .info-block p { margin-bottom: 5px; font-size: 14px; word-break: break-all; }
 
         /* Error Banner */
         #error-banner { background: #e74c3c; color: white; padding: 10px; text-align: center; display: none; font-size: 14px; }
@@ -172,7 +172,7 @@
                 </div>
             </div>
 
-            <!-- NEW: Manage All Jobs -->
+            <!-- 3. Manage All Jobs -->
             <div id="manage-all-jobs" class="screen">
                 <h2 style="margin-bottom: 15px;">All Jobs & Postings Control</h2>
                 <div class="table-responsive">
@@ -187,9 +187,18 @@
                 </div>
             </div>
 
-            <!-- 3. Manage Companies -->
+            <!-- 4. Manage Companies -->
             <div id="manage-companies" class="screen">
                 <h2 style="margin-bottom: 15px;">Registered Companies</h2>
+                
+                <!-- NEW: Filter Dropdown -->
+                <select id="company-plan-filter" onchange="renderCompanies()" style="max-width: 250px; margin-bottom: 15px;">
+                    <option value="all">View All Plans</option>
+                    <option value="free">Free Plan</option>
+                    <option value="per_post">Pay Per Post</option>
+                    <option value="monthly">Monthly Subscription</option>
+                </select>
+
                 <div class="table-responsive">
                     <table>
                         <thead>
@@ -202,7 +211,7 @@
                 </div>
             </div>
 
-            <!-- 4. Payment Logs -->
+            <!-- 5. Payment Logs -->
             <div id="payment-logs" class="screen">
                 <h2 style="margin-bottom: 15px;">Payment Logs</h2>
                 <div class="table-responsive">
@@ -215,7 +224,7 @@
                 </div>
             </div>
 
-            <!-- 5. Candidates -->
+            <!-- 6. Candidates -->
             <div id="all-candidates" class="screen">
                 <h2 style="margin-bottom: 15px;">Candidate Database</h2>
                 <input type="text" id="cand-search" placeholder="Search by Name or Email..." oninput="filterCandidates()">
@@ -224,7 +233,7 @@
                 </div>
             </div>
 
-            <!-- 6. Applications -->
+            <!-- 7. Applications -->
             <div id="all-applications" class="screen">
                 <h2 style="margin-bottom: 15px;">Platform Application Logs</h2>
                 <div class="table-responsive">
@@ -242,14 +251,13 @@
 
     <!-- Company Edit & Details Modal -->
     <div class="modal-overlay" id="companyModal">
-        <div class="modal">
+        <div class="modal" style="max-width: 500px;">
             <h3 style="margin-bottom: 15px; color: var(--admin)">Company Details & Billing</h3>
             <input type="hidden" id="modal-cid">
             
-            <!-- Read Only Info Block -->
-            <div class="info-block">
-                <p><b>Name/Email:</b> <span id="company-info-name"></span></p>
-                <p><b>Contact No:</b> <span id="company-info-phone" style="color:var(--admin); font-weight:bold;"></span></p>
+            <!-- Read Only FULL Info Block -->
+            <div class="info-block" id="company-full-details" style="max-height: 250px; overflow-y: auto;">
+                <!-- Dynamically Populated with all keys -->
             </div>
 
             <label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display: block;">Plan Type</label>
@@ -280,7 +288,7 @@
     <div class="modal-overlay" id="candidateModal">
         <div class="modal">
             <h3 style="margin-bottom: 15px; color: var(--admin)">Candidate Full Profile</h3>
-            <div id="candidate-details-content" class="info-block" style="background: white; border: 1px solid #eee;">
+            <div id="candidate-details-content" class="info-block" style="background: white; border: 1px solid #eee; max-height: 400px; overflow-y: auto;">
                 <!-- Dynamically Populated -->
             </div>
             <button style="background: #95a5a6; margin-top: 15px;" onclick="closeModal('candidateModal')">Close View</button>
@@ -309,6 +317,7 @@
     }
 
     let activeListeners = [];
+    window.companiesDataList = []; // New array to store companies for filtering
     window.companiesMap = {}; // Global cache for company details
 
     // --- UI Helpers ---
@@ -362,7 +371,6 @@
 
     // --- Dashboard Data Loading ---
     function initDashboard() {
-        // Load companies first to build the map, then load the rest
         loadCompanies(() => {
             loadKPIs();
             loadPendingJobs();
@@ -391,47 +399,96 @@
         activeListeners.push(unsub1, unsub2, unsub3, unsub4);
     }
 
+    // --- Companies Filter & Detailed Rendering ---
     function loadCompanies(callback) {
         const unsub = db.collection('companies').onSnapshot(snap => {
-            const tbody = document.getElementById('companies-table-body');
-            tbody.innerHTML = '';
-            if(snap.empty) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No companies found</td></tr>';
+            window.companiesDataList = [];
+            window.companiesMap = {};
             
             snap.forEach(doc => {
                 const c = doc.data();
-                window.companiesMap[doc.id] = c; // Save to global cache
-                const displayName = c.name || c.email || 'N/A';
-                
-                tbody.innerHTML += `<tr>
-                    <td data-label="Company Name"><b>${displayName}</b></td>
-                    <td data-label="Plan"><span style="text-transform: capitalize; background:#e1f5fe; padding:4px 8px; border-radius:4px; font-size:12px;">${c.planType || 'free'}</span></td>
-                    <td data-label="Posts Used">${c.totalPostsUsed || 0}</td>
-                    <td data-label="Status">${c.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</td>
-                    <td data-label="Actions"><button onclick="openCompanyModal('${doc.id}')" style="min-height:36px; padding:6px 12px; font-size:14px;">View & Edit</button></td>
-                </tr>`;
+                c.id = doc.id;
+                window.companiesDataList.push(c);
+                window.companiesMap[doc.id] = c;
             });
+            
+            renderCompanies();
             if(callback) { callback(); callback = null; }
         }, err => showError("Companies Error: " + err.message));
         activeListeners.push(unsub);
+    }
+
+    function renderCompanies() {
+        const filterVal = document.getElementById('company-plan-filter').value;
+        const tbody = document.getElementById('companies-table-body');
+        tbody.innerHTML = '';
+        
+        let filtered = window.companiesDataList;
+        if (filterVal !== 'all') {
+            filtered = filtered.filter(c => (c.planType || 'free') === filterVal);
+        }
+
+        if(filtered.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No companies found for this filter</td></tr>'; 
+            return; 
+        }
+        
+        filtered.forEach(c => {
+            const displayName = c.name || c.companyName || c.email || 'N/A';
+            tbody.innerHTML += `<tr>
+                <td data-label="Company Name"><b>${displayName}</b></td>
+                <td data-label="Plan"><span style="text-transform: capitalize; background:#e1f5fe; padding:4px 8px; border-radius:4px; font-size:12px;">${c.planType || 'free'}</span></td>
+                <td data-label="Posts Used">${c.totalPostsUsed || 0}</td>
+                <td data-label="Status">${c.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</td>
+                <td data-label="Actions"><button onclick="openCompanyModal('${c.id}')" style="min-height:36px; padding:6px 12px; font-size:14px;">View Full Details</button></td>
+            </tr>`;
+        });
     }
 
     function openCompanyModal(id) {
         const c = window.companiesMap[id];
         if(!c) return;
 
+        // Set Plan Settings
         document.getElementById('modal-cid').value = id;
         document.getElementById('modal-plan').value = c.planType || 'free';
         document.getElementById('modal-price').value = c.pricePerPost || c.monthlyPrice || 0;
         document.getElementById('modal-status').value = c.status || 'active';
         
-        // Detailed info setup
-        document.getElementById('company-info-name').innerText = c.name || c.email || 'N/A';
-        document.getElementById('company-info-phone').innerText = c.phone || c.contactNumber || c.mobile || 'No contact provided';
+        // Dynamically loop through ALL filled properties of the company
+        let detailsHtml = '';
         
+        // Fields we don't want to show in the read-only block because they are managed via inputs below
+        const ignoreKeys = ['planType', 'pricePerPost', 'monthlyPrice', 'status', 'totalPostsUsed', 'totalPaid', 'id'];
+        
+        // Prioritize Name, Email, and Phone at the top
+        detailsHtml += `<p><b>Name:</b> ${c.name || c.companyName || 'N/A'}</p>`;
+        detailsHtml += `<p><b>Email:</b> ${c.email || 'N/A'}</p>`;
+        detailsHtml += `<p><b>Contact No:</b> <span style="color:var(--admin); font-weight:bold;">${c.phone || c.contactNumber || c.mobile || 'No contact provided'}</span></p>`;
+        
+        // Loop through all remaining keys dynamically
+        for(let key in c) {
+            if(!ignoreKeys.includes(key) && key !== 'name' && key !== 'companyName' && key !== 'email' && key !== 'phone' && key !== 'contactNumber' && key !== 'mobile') {
+                let val = c[key];
+                // Format timestamps if any
+                if(val && typeof val === 'object' && val.toDate) {
+                    val = new Date(val.toDate()).toLocaleDateString();
+                }
+                
+                // Format Key to Title Case (e.g., companyAddress -> CompanyAddress)
+                let formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
+                
+                if (val && typeof val !== 'object') {
+                    detailsHtml += `<p><b>${formattedKey}:</b> ${val}</p>`;
+                }
+            }
+        }
+        
+        document.getElementById('company-full-details').innerHTML = detailsHtml;
         document.getElementById('companyModal').style.display = 'flex';
     }
 
-    // --- All Jobs Management (NEW) ---
+    // --- All Jobs Management ---
     function loadAllJobs() {
         const unsub = db.collection('jobs').onSnapshot(snap => {
             const tbody = document.getElementById('all-jobs-table-body');
@@ -440,7 +497,6 @@
             
             snap.forEach(doc => {
                 const j = doc.data();
-                // Determine color based on status
                 let statusColor = j.status === 'Approved' ? 'color: #27ae60;' : (j.status === 'Deactivated' ? 'color: #e74c3c;' : 'color: #f39c12;');
                 
                 tbody.innerHTML += `<tr>
@@ -471,12 +527,8 @@
 
     function deleteAnyJob(jobId) {
         Swal.fire({
-            title: 'Delete this Job?',
-            text: "This action cannot be undone!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e74c3c',
-            confirmButtonText: 'Yes, delete it'
+            title: 'Delete this Job?', text: "This action cannot be undone!", icon: 'warning',
+            showCancelButton: true, confirmButtonColor: '#e74c3c', confirmButtonText: 'Yes, delete it'
         }).then((result) => {
             if (result.isConfirmed) {
                 db.collection('jobs').doc(jobId).delete()
@@ -486,7 +538,7 @@
         });
     }
 
-    // --- Pending Jobs (Legacy Screen) ---
+    // --- Pending Jobs ---
     function loadPendingJobs() {
         const unsub = db.collection('jobs').where('status', '==', 'Pending Review').onSnapshot(snap => {
             const list = document.getElementById('pending-jobs');
@@ -523,12 +575,12 @@
         const unsub = db.collection('candidates').onSnapshot(snap => {
             window.candidatesData = [];
             snap.forEach(doc => window.candidatesData.push({id: doc.id, ...doc.data()}));
-            renderCandidates(window.candidatesData);
+            renderCandidatesList(window.candidatesData);
         });
         activeListeners.push(unsub);
     }
 
-    function renderCandidates(data) {
+    function renderCandidatesList(data) {
         const list = document.getElementById('candidates-list');
         list.innerHTML = '';
         if(data.length === 0) { list.innerHTML = '<p style="color:#888;">No candidates found.</p>'; return; }
@@ -549,7 +601,7 @@
             (c.email && c.email.toLowerCase().includes(term)) ||
             (c.phone && c.phone.includes(term))
         );
-        renderCandidates(filtered);
+        renderCandidatesList(filtered);
     }
 
     function openCandidateModal(id) {
@@ -584,7 +636,6 @@
             
             snap.forEach(doc => {
                 const a = doc.data();
-                // Find company plan from map
                 const comp = window.companiesMap[a.companyId] || {};
                 const planType = comp.planType ? `<span style="background:#e1f5fe; padding:2px 6px; border-radius:3px; font-size:11px;">${comp.planType}</span>` : '';
                 const compName = a.companyName || comp.name || a.companyId || 'N/A';
@@ -677,7 +728,6 @@
         });
     }
 
-    // Chart logic reused from previous implementation
     function loadPayments() {
         const unsub = db.collection('payments').orderBy('date', 'desc').onSnapshot(snap => {
             const tbody = document.getElementById('payments-table-body');
