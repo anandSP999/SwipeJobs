@@ -11,7 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
     
-    <!-- HTML2PDF Library (Fixed for Downloads) -->
+    <!-- HTML2PDF Library & FontAwesome -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -86,6 +86,13 @@
         
         #undo-btn { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; z-index: 50; cursor: pointer; font-size: 14px; }
         .profile-label { font-size: 12px; font-weight: bold; color: var(--text-light); margin-bottom: 3px; display: block; }
+        
+        /* Share Modal Styles */
+        .social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 8px; color: white; text-decoration: none; margin-bottom: 10px; font-weight: bold; }
+        .btn-wa { background: #25D366; }
+        .btn-tg { background: #0088cc; }
+        .btn-tw { background: #1DA1F2; }
+        .btn-copy { background: #333; border: none; width: 100%; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -102,7 +109,7 @@
         </div>
     </div>
 
-    <!-- NEW GUEST PREVIEW SCREEN (For Shared Job Links) -->
+    <!-- GUEST PREVIEW SCREEN (For Shared Job Links) -->
     <div id="guest-screen" class="screen" style="justify-content: center; align-items: center; padding: 20px;">
         <div style="background: var(--card-bg); width: 100%; max-width: 450px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 25px; text-align: center; border: 1px solid #eee;">
             <div style="width: 60px; height: 60px; background: #eee; border-radius: 12px; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #aaa;" id="g-logo">🏢</div>
@@ -126,8 +133,8 @@
                 <p id="g-desc" style="font-size: 13px; color: var(--text-light); line-height: 1.5; max-height: 100px; overflow-y: hidden; text-overflow: ellipsis;">-</p>
             </div>
             
-            <button onclick="goToLoginFromGuest()" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 8px;">Login to Apply</button>
-            <p style="margin-top: 15px; font-size: 12px; color: var(--text-light);">Create a profile to view contact details and apply.</p>
+            <button onclick="goToLoginFromGuest()" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 8px;">Login / Register to Apply</button>
+            <p style="margin-top: 15px; font-size: 12px; color: var(--text-light);">Create your profile to view full details and swipe to apply.</p>
         </div>
     </div>
 
@@ -217,10 +224,11 @@
             <span class="close-modal" onclick="closeJobModal()">✖</span>
             <div class="company-header">
                 <div class="company-logo" id="m-logo">LOGO</div>
-                <div>
+                <div style="flex: 1;">
                     <h2 id="m-company" class="company-name" style="font-size: 20px;">Company</h2>
                     <p id="m-location" style="font-size: 14px; color: var(--text-light);">Location</p>
                 </div>
+                <button style="width: auto; background: none; color: var(--primary); font-size: 20px; padding: 0;" onclick="openShareModal()"><i class="fa-solid fa-share-nodes"></i></button>
             </div>
             <h3 id="m-title" class="job-title">Job Title</h3>
             <span id="m-type" class="status-badge" style="background: #e2e3e5; color: #383d41;">Full-Time</span>
@@ -232,9 +240,22 @@
             <h4>Job Description:</h4>
             <p id="m-desc" style="font-size: 14px; color: var(--text-light); margin-top: 5px;"></p>
             <br>
-            <button class="btn-apply" onclick="applyFromModal()">Apply Now</button>
+            <button class="btn-apply" onclick="applyFromModal()">Swipe Right to Apply ✔</button>
         </div>
     </div>
+
+    <!-- Share Social Modal -->
+    <div id="share-modal" class="modal" style="z-index: 105;">
+        <div class="modal-content" style="max-width: 350px;">
+            <span class="close-modal" onclick="closeShareModal()">✖</span>
+            <h3 style="margin-bottom: 15px; text-align: center;">Share this Job</h3>
+            <a id="share-wa" class="social-btn btn-wa" target="_blank"><i class="fa-brands fa-whatsapp"></i> Share on WhatsApp</a>
+            <a id="share-tg" class="social-btn btn-tg" target="_blank"><i class="fa-brands fa-telegram"></i> Share on Telegram</a>
+            <a id="share-tw" class="social-btn btn-tw" target="_blank"><i class="fa-brands fa-twitter"></i> Share on Twitter</a>
+            <button class="social-btn btn-copy" onclick="copyShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -262,9 +283,10 @@
     let userCity = "";
     let lastRejectedJob = null; 
 
-    // --- CHECK FOR SHARED JOB URL PARAMETER ---
+    // --- SHARED JOB URL PARAMETER ---
     const urlParams = new URLSearchParams(window.location.search);
     const sharedJobId = urlParams.get('jobId');
+    let currentShareUrl = ""; // For copy feature
 
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
@@ -330,7 +352,7 @@
         auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
     }
 
-    // --- UPDATED AUTH CHECK ---
+    // --- AUTH STATE & GUEST ROUTING ---
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             currentUser = user;
@@ -345,10 +367,10 @@
             fetchLiveJobs(); loadAppliedJobs();
             if(window.innerWidth >= 1024) switchTab('applied');
 
-            // If user logged in after clicking a shared link
+            // If user clicked link & is logged in, show the job immediately
             if(sharedJobId) {
-                setTimeout(() => openJobModal(sharedJobId), 1500); // Open specific job after loading
-                window.history.replaceState(null, '', window.location.pathname); // Clear URL parameter
+                setTimeout(() => openJobModal(sharedJobId, true), 1000); 
+                window.history.replaceState(null, '', window.location.pathname);
             }
         } else {
             // Guest Mode Check
@@ -361,17 +383,17 @@
         }
     });
 
-    // Fetch Job details for Guest Screen
+    // --- FETCH GUEST PREVIEW ---
     async function loadGuestJobPreview(jobId) {
         try {
             const doc = await db.collection('jobs').doc(jobId).get();
             if(doc.exists) {
                 const j = doc.data();
-                const safeCompName = j.companyName || 'Company';
+                const safeCompName = j.companyName || (j.companyEmail ? j.companyEmail.split('@')[0].toUpperCase() : 'Company');
                 document.getElementById('g-logo').innerText = safeCompName.substring(0,1).toUpperCase();
                 document.getElementById('g-company').innerText = safeCompName;
                 document.getElementById('g-title').innerText = j.title || 'Job Title';
-                document.getElementById('g-location').innerText = `${j.city || 'Location'}, ${j.state || ''}`;
+                document.getElementById('g-location').innerText = `${j.location || 'Not Specified'}`;
                 document.getElementById('g-salary').innerText = j.salary || '-';
                 document.getElementById('g-vacancy').innerText = j.vacancy || '-';
                 document.getElementById('g-desc').innerText = j.desc || 'No description provided.';
@@ -513,21 +535,58 @@
 
     function reportJob(jobId, event) { event.stopPropagation(); let reason = prompt("Report this job (e.g., Fake Job).\nEnter Reason:"); if (reason && reason.trim() !== "") { db.collection('reports').add({ jobId: jobId, candidateId: currentUser.uid, reason: reason, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).then(() => alert("Report Submitted successfully.")); } }
 
-    function openJobModal(jobId) {
-        if(!jobId) return; // Prevent breaking if fallback applied
-        const job = allJobs.find(j => j.id === jobId);
-        if(!job) return; 
-        currentJobOnTop = job;
+    async function openJobModal(jobId, fetchFromDB = false) {
+        if(!jobId) return; 
+        
+        if(fetchFromDB) {
+            const doc = await db.collection('jobs').doc(jobId).get();
+            if(doc.exists) { currentJobOnTop = {...doc.data(), id: doc.id}; } else { alert("Job not found."); return; }
+        } else {
+            currentJobOnTop = allJobs.find(j => j.id === jobId);
+        }
+        
+        if(!currentJobOnTop) return; 
         
         const compName = currentJobOnTop.companyName || (currentJobOnTop.companyEmail ? currentJobOnTop.companyEmail.split('@')[0].toUpperCase() : 'Company');
-        document.getElementById('m-company').innerText = compName; document.getElementById('m-location').innerText = `${currentJobOnTop.city || ''}, ${currentJobOnTop.state || ''}`; document.getElementById('m-logo').innerText = compName.substring(0,1);
+        document.getElementById('m-company').innerText = compName; document.getElementById('m-location').innerText = `${currentJobOnTop.location || 'India'}`; document.getElementById('m-logo').innerText = compName.substring(0,1);
         document.getElementById('m-title').innerText = currentJobOnTop.title; document.getElementById('m-type').innerText = currentJobOnTop.jobType || 'Full-Time'; document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy;
         document.getElementById('m-salary').innerText = currentJobOnTop.salary; document.getElementById('m-desc').innerText = currentJobOnTop.desc || "No description."; document.getElementById('m-applycount').innerText = currentJobOnTop.applyCount || 0;
+        
         document.getElementById('job-modal').style.display = 'flex';
     }
 
     function closeJobModal() { document.getElementById('job-modal').style.display = 'none'; }
     function applyFromModal() { if(currentJobOnTop) { swipeCard(currentJobOnTop.id, 'right'); closeJobModal(); } }
+
+    // --- SMART SHARE FEATURE (AI TEXT GEN) ---
+    function openShareModal() {
+        if(!currentJobOnTop) return;
+        const compName = currentJobOnTop.companyName || 'an awesome company';
+        const roleName = currentJobOnTop.title || 'a great role';
+        
+        // Base URL generation
+        currentShareUrl = window.location.origin + window.location.pathname + '?jobId=' + currentJobOnTop.id;
+        
+        // AI-style dynamic text generator
+        const shareText = `🚀 Hey! I found this awesome ${roleName} position at ${compName} paying ${currentJobOnTop.salary || 'great salary'}! Apply now via SwipeJobs:`;
+        
+        // Setup Social Links
+        document.getElementById('share-wa').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + currentShareUrl)}`;
+        document.getElementById('share-tg').href = `https://t.me/share/url?url=${encodeURIComponent(currentShareUrl)}&text=${encodeURIComponent(shareText)}`;
+        document.getElementById('share-tw').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentShareUrl)}`;
+        
+        document.getElementById('share-modal').style.display = 'flex';
+    }
+
+    function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
+
+    function copyShareLink() {
+        navigator.clipboard.writeText(currentShareUrl).then(() => {
+            alert("Link Copied to Clipboard!");
+            closeShareModal();
+        });
+    }
+
 </script>
 </body>
 </html>
