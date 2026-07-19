@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwipeJobs - Pro Candidate Portal</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    
+    <!-- HTML2PDF Library & FontAwesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- NEW: PDF.js for client-side resume parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root { 
+            --primary: #ff4b4b; --bg-color: #f4f4f4; --card-bg: #ffffff; 
+            --text-dark: #333; --text-light: #777; --nav-bg: #ffffff;
+        }
+        body.dark-mode {
+            --primary: #ff4b4b; --bg-color: #121212; --card-bg: #1e1e1e; 
+            --text-dark: #f4f4f4; --text-light: #aaa; --nav-bg: #1e1e1e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-dark); display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
+
+        .app-container { width: 100%; height: 100vh; background: var(--bg-color); position: relative; display: flex; flex-direction: column; overflow: hidden; transition: 0.3s; }
+        
+        @media (min-width: 1024px) {
+            .app-container { width: 100vw; max-width: 1200px; height: 100vh; display: flex; flex-direction: row; margin: 0 auto; box-shadow: none; border-radius: 0; }
+            .mobile-nav-tabs { display: none !important; }
+            #main-screen { flex-direction: row !important; width: 100%; display: flex; }
+            #view-swipe { width: 60%; border-right: 1px solid #ccc; position: relative; }
+            #view-side-panel { width: 40%; display: flex !important; flex-direction: column; }
+            #view-applied, #view-profile { display: flex; flex: 1; flex-direction: column; }
+            .desktop-header { display: flex !important; justify-content: space-between; align-items: center; padding: 15px; background: var(--nav-bg); border-bottom: 1px solid #ddd; }
+        }
+
+        .desktop-header { display: none; } 
+        
+        .screen { display: none; flex-direction: column; height: 100%; width: 100%; padding: 20px; overflow-y: auto; }
+        .screen.active { display: flex; }
+
+        input, button, textarea, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; background: var(--card-bg); color: var(--text-dark); }
+        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #e03e3e; }
+        
+        .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--nav-bg); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .top-header h2 { color: var(--primary); font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .header-icons span { font-size: 20px; cursor: pointer; margin-left: 15px; position: relative; }
+        .notification-dot { position: absolute; top: 0; right: -5px; width: 10px; height: 10px; background: red; border-radius: 50%; display: none; }
+
+        .mobile-nav-tabs { display: flex; justify-content: space-around; background: var(--nav-bg); padding: 15px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); position: absolute; bottom: 0; width: 100%; z-index: 10; }
+        .mobile-nav-tabs span { font-size: 14px; font-weight: bold; color: var(--text-light); cursor: pointer; }
+        .mobile-nav-tabs span.active-tab { color: var(--primary); }
+
+        .swipe-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; margin-bottom: 60px; overflow: hidden; }
+        .card { position: absolute; width: 90%; height: 85%; background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; cursor: grab; user-select: none; touch-action: none; transition: transform 0.3s ease, opacity 0.3s ease; }
+        .card:active { cursor: grabbing; }
+        
+        .company-header { display: flex; align-items: center; margin-bottom: 10px; }
+        .company-logo { width: 50px; height: 50px; background: #eee; border-radius: 10px; margin-right: 15px; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #aaa; }
+        .company-name { font-size: 20px; font-weight: bold; color: var(--primary); }
+        .job-title { font-size: 22px; font-weight: bold; margin-bottom: 5px; }
+        .job-details { font-size: 14px; color: var(--text-light); margin-bottom: 5px; }
+        .report-btn { position: absolute; bottom: 20px; right: 20px; font-size: 20px; cursor: pointer; background: transparent; color: #ccc; border: none; width: auto; padding: 0; }
+
+        .card-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
+        .btn-reject { background: #ccc; color: black; }
+        .btn-apply { background: var(--primary); }
+        .btn-fav { background: #f1c40f; color: black; width: auto; padding: 0 15px; display: flex; align-items: center; gap: 5px; }
+
+        .filter-buttons { display: flex; gap: 10px; padding: 0 15px; margin-top: 10px; }
+        .filter-buttons button { padding: 8px; font-size: 14px; background: var(--nav-bg); color: var(--text-dark); border: 1px solid #ccc; border-radius: 20px; }
+        .filter-buttons button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+        .modal-content { background: var(--card-bg); width: 90%; max-width: 500px; max-height: 90%; border-radius: 15px; padding: 20px; overflow-y: auto; position: relative; color: var(--text-dark); }
+        .close-modal { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; font-weight: bold; color: var(--text-dark); }
+
+        .applied-item { background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #d4edda; color: #155724; margin-top: 5px; }
+        
+        #undo-btn { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; z-index: 50; cursor: pointer; font-size: 14px; }
+        .profile-label { font-size: 12px; font-weight: bold; color: var(--text-light); margin-bottom: 3px; display: block; }
+        
+        /* Share Modal Styles */
+        .social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 8px; color: white; text-decoration: none; margin-bottom: 10px; font-weight: bold; }
+        .btn-wa { background: #25D366; }
+        .btn-tg { background: #0088cc; }
+        .btn-tw { background: #1DA1F2; }
+        .btn-copy { background: #333; border: none; width: 100%; font-size: 16px; cursor: pointer; }
+
+        /* Load More */
+        .load-more-btn { background: #95a5a6; width: auto; padding: 8px 20px; margin: 10px auto; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="desktop-header">
+        <h2 style="color: var(--primary); cursor: pointer;" onclick="switchTab('swipe')">🏠 SwipeJobs</h2>
+        <div>
+            <button style="width: auto; margin:0 5px;" onclick="switchTab('swipe')">Home</button>
+            <button style="width: auto; margin:0 5px;" onclick="switchTab('applied')">Applied Jobs</button>
+            <button style="width: auto; margin:0 5px;" onclick="switchTab('profile')">My Profile</button>
+            <button style="width: auto; margin:0 5px;" onclick="toggleDarkMode()">🌓 Theme</button>
+            <button style="width: auto; margin:0 5px; background: #ccc; color: black;" onclick="auth.signOut()">Logout</button>
+        </div>
+    </div>
+
+    <!-- GUEST PREVIEW SCREEN (For Shared Job Links) -->
+    <div id="guest-screen" class="screen" style="justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: var(--card-bg); width: 100%; max-width: 450px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 25px; text-align: center; border: 1px solid #eee;">
+            <div style="width: 60px; height: 60px; background: #eee; border-radius: 12px; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #aaa;" id="g-logo">🏢</div>
+            <h2 id="g-company" style="color: var(--primary); font-size: 18px; margin-bottom: 5px;">Loading...</h2>
+            <h3 id="g-title" style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">-</h3>
+            <p style="font-size: 14px; color: var(--text-light); margin-bottom: 15px;"><i class="fa-solid fa-location-dot"></i> <span id="g-location">-</span></p>
+            
+            <div style="display: flex; justify-content: space-between; background: var(--bg-color); padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: left;">
+                <div>
+                    <span style="font-size: 12px; color: var(--text-light); display:block;">Salary</span>
+                    <span id="g-salary" style="font-size: 14px; font-weight: bold;">-</span>
+                </div>
+                <div>
+                    <span style="font-size: 12px; color: var(--text-light); display:block;">Vacancies</span>
+                    <span id="g-vacancy" style="font-size: 14px; font-weight: bold;">-</span>
+                </div>
+            </div>
+            
+            <div style="text-align: left; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 5px; font-size:14px;">Job Description</h4>
+                <p id="g-desc" style="font-size: 13px; color: var(--text-light); line-height: 1.5; max-height: 100px; overflow-y: hidden; text-overflow: ellipsis;">-</p>
+            </div>
+            
+            <button onclick="goToLoginFromGuest()" style="width: 100%; padding: 14px; font-size: 16px; border-radius: 8px;">Login / Register to Apply</button>
+            <p style="margin-top: 15px; font-size: 12px; color: var(--text-light);">Create your profile to view full details and swipe to apply.</p>
+        </div>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen">
+        <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 32px;">SwipeJobs</h2>
+        <h3>Login</h3>
+        <p style="margin-bottom: 20px; font-size: 14px; color: var(--text-light);">Welcome back! Please login.</p>
+        <input type="email" id="login-email" placeholder="Email ID">
+        <input type="password" id="login-pass" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <hr style="margin: 20px 0; border: 0.5px solid #ddd;">
+        <p style="text-align: center; margin-bottom: 10px;">Don't have an account?</p>
+        <button onclick="openRegisterModal()" style="background: #333;">New Registration</button>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeRegisterModal()">✖</span>
+            <h2 style="color: var(--primary); margin-bottom: 5px;">Create Profile</h2>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Build your detailed CV Database.</p>
+            <input type="email" id="reg-email" placeholder="Email ID *">
+            <input type="password" id="reg-pass" placeholder="Password *">
+            <input type="text" id="reg-name" placeholder="Full Name *">
+            <input type="text" id="reg-mobile" placeholder="Mobile Number *">
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="reg-city" placeholder="City *">
+                <input type="text" id="reg-state" placeholder="State *">
+            </div>
+            <input type="text" id="reg-education" placeholder="Highest Education (e.g., B.Tech) *">
+            <textarea id="reg-work" placeholder="Work History (Past companies, years)"></textarea>
+            <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block;">Upload Resume (PDF) - Auto-fills Skills</label>
+            <input type="file" id="reg-resume-file" accept="application/pdf" style="padding: 5px;" onchange="parsePDF()">
+            <textarea id="reg-bio" placeholder="Skills & Bio *" rows="2"></textarea>
+            <button id="reg-btn" onclick="registerNewCandidate()">Register & Enter App</button>
+        </div>
+    </div>
+
+    <!-- Main App UI -->
+    <div id="main-screen" class="screen" style="padding: 0; overflow: hidden;">
+        <div class="top-header" id="mobile-top-header">
+            <h2 onclick="switchTab('swipe')">🏠 SwipeJobs</h2>
+            <div class="header-icons">
+                <span onclick="toggleDarkMode()" title="Toggle Theme">🌓</span>
+                <span onclick="switchTab('profile')" title="My Profile">👤</span>
+                <span onclick="switchTab('applied')" title="Notifications">🔔<div class="notification-dot" id="notif-badge"></div></span>
+            </div>
+        </div>
+
+        <div id="view-swipe" style="display: flex; flex-direction: column; height: 100%;">
+            <div style="padding: 15px 15px 5px 15px;"><input type="text" id="search-box" placeholder="Search Jobs (e.g. Developer)..." onkeyup="filterJobsBySearch()"></div>
+            <div class="filter-buttons">
+                <button id="btn-nearby" class="active" onclick="setLocationFilter('nearby')">📍 Nearby</button>
+                <button id="btn-allindia" onclick="setLocationFilter('all')">🇮🇳 All India</button>
+            </div>
+            <div class="swipe-area" id="swipe-area"></div>
+            <div id="undo-btn" onclick="undoSwipe()">↩ Undo Reject</div>
+        </div>
+
+        <div id="view-side-panel" style="display: none; height: 100%; overflow-y: auto; padding-bottom: 60px;">
+            <div id="view-applied" style="padding: 20px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>Applied Jobs</h2>
+                    <button style="width: auto; padding: 8px 12px; font-size: 12px; border-radius: 8px;" onclick="generatePDF()">📄 Download CV</button>
+                </div>
+                <div id="applied-list"></div>
+                <button class="load-more-btn" id="load-more-applied" onclick="loadMoreApplied()">Load More</button>
+            </div>
+            <div id="view-profile" style="padding: 20px; display: none;">
+                <h2>My Profile</h2>
+                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Update your skills and experience here.</p>
+                <div id="profile-details-container">
+                    <p style="color:var(--text-light); font-size: 14px;">Loading profile data...</p>
+                </div>
+                <!-- Favorites section -->
+                <h3 style="margin-top: 20px;">⭐ Saved Jobs (Favorites)</h3>
+                <div id="favorites-list"></div>
+                <button style="background: #333; margin-top: 15px;" onclick="auth.signOut()">Logout</button>
+            </div>
+        </div>
+
+        <div class="mobile-nav-tabs">
+            <span class="active-tab" id="tab-swipe" onclick="switchTab('swipe')">🏠 Home</span>
+            <span id="tab-applied" onclick="switchTab('applied')">Applied</span>
+            <span id="tab-profile" onclick="switchTab('profile')">Profile</span>
+        </div>
+    </div>
+
+    <!-- Full Job Detail Modal -->
+    <div id="job-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeJobModal()">✖</span>
+            <div class="company-header">
+                <div class="company-logo" id="m-logo">LOGO</div>
+                <div style="flex: 1;">
+                    <h2 id="m-company" class="company-name" style="font-size: 20px;">Company</h2>
+                    <p id="m-location" style="font-size: 14px; color: var(--text-light);">Location</p>
+                </div>
+                <button style="width: auto; background: none; color: var(--primary); font-size: 20px; padding: 0;" onclick="openShareModal()"><i class="fa-solid fa-share-nodes"></i></button>
+            </div>
+            <h3 id="m-title" class="job-title">Job Title</h3>
+            <span id="m-type" class="status-badge" style="background: #e2e3e5; color: #383d41;">Full-Time</span>
+            <hr style="margin: 15px 0; border: 0.5px solid #eee;">
+            <p><strong>Vacancies:</strong> <span id="m-vacancy"></span></p>
+            <p><strong>Salary:</strong> <span id="m-salary"></span></p>
+            <p style="margin-top:5px; font-size: 12px; color:var(--primary);">🔥 <span id="m-applycount">0</span> people have applied</p>
+            <br>
+            <h4>Job Description:</h4>
+            <p id="m-desc" style="font-size: 14px; color: var(--text-light); margin-top: 5px;"></p>
+            <br>
+            <button class="btn-apply" onclick="applyFromModal()">Swipe Right to Apply ✔</button>
+        </div>
+    </div>
+
+    <!-- Share Social Modal -->
+    <div id="share-modal" class="modal" style="z-index: 105;">
+        <div class="modal-content" style="max-width: 350px;">
+            <span class="close-modal" onclick="closeShareModal()">✖</span>
+            <h3 style="margin-bottom: 15px; text-align: center;">Share this Job</h3>
+            <a id="share-wa" class="social-btn btn-wa" target="_blank"><i class="fa-brands fa-whatsapp"></i> Share on WhatsApp</a>
+            <a id="share-tg" class="social-btn btn-tg" target="_blank"><i class="fa-brands fa-telegram"></i> Share on Telegram</a>
+            <a id="share-tw" class="social-btn btn-tw" target="_blank"><i class="fa-brands fa-twitter"></i> Share on Twitter</a>
+            <button class="social-btn btn-copy" onclick="copyShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); }
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWYjuwSKnaK8S_S7Af1kQPE11ZrPH8OhU",
+        authDomain: "swipejobs-a5317.firebaseapp.com",
+        projectId: "swipejobs-a5317",
+        storageBucket: "swipejobs-a5317.firebasestorage.app",
+        messagingSenderId: "916910145870",
+        appId: "1:916910145870:web:7afb0e09cba45405d0de1f"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    let currentUser = null;
+    let candidateData = null;
+    let currentJobOnTop = null;
+    let allJobs = [];
+    let currentTabFilter = 'nearby'; 
+    let userCity = "";
+    let lastRejectedJob = null; 
+    let lastAppliedDoc = null;
+    const APPLIED_LIMIT = 20;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedJobId = urlParams.get('jobId');
+    let currentShareUrl = ""; 
+
+    // NEW: Push Notification Service Worker Registration
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW registered');
+        }).catch(err => console.log('SW error', err));
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+    }
+
+    function openRegisterModal() { document.getElementById('register-modal').style.display = 'flex'; }
+    function closeRegisterModal() { document.getElementById('register-modal').style.display = 'none'; }
+    function goToLoginFromGuest() { showScreen('auth-screen'); }
+
+    function switchTab(tab) {
+        if(window.innerWidth >= 1024) {
+            document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
+            document.getElementById('view-profile').style.display = tab === 'profile' ? 'block' : 'none';
+        } else {
+            document.getElementById('view-swipe').style.display = tab === 'swipe' ? 'flex' : 'none';
+            document.getElementById('view-side-panel').style.display = (tab === 'applied' || tab === 'profile') ? 'block' : 'none';
+            document.getElementById('view-applied').style.display = tab === 'applied' ? 'block' : 'none';
+            document.getElementById('view-profile').style.display = tab === 'profile' ? 'block' : 'none';
+            
+            document.querySelectorAll('.mobile-nav-tabs span').forEach(el => el.classList.remove('active-tab'));
+            if(document.getElementById('tab-' + tab)) document.getElementById('tab-' + tab).classList.add('active-tab');
+        }
+        if(tab === 'profile') { loadUserProfile(); loadFavorites(); }
+        if(tab === 'applied') { loadAppliedJobs(); }
+    }
+
+    function setLocationFilter(type) {
+        currentTabFilter = type;
+        document.getElementById('btn-nearby').classList.toggle('active', type === 'nearby');
+        document.getElementById('btn-allindia').classList.toggle('active', type === 'all');
+        renderJobs(); 
+    }
+
+    // NEW: PDF Parsing Function
+    async function parsePDF() {
+        const fileInput = document.getElementById('reg-resume-file');
+        if(fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+        if(file.type !== 'application/pdf') return alert('Please upload a PDF file.');
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const strings = content.items.map(item => item.str);
+            text += strings.join(' ') + ' ';
+        }
+        // Simple extraction logic for skills/bio (can be improved)
+        const skillsMatch = text.match(/skills?:?\s*([^\n]+)/i);
+        const bioMatch = text.match(/bio|summary|profile\s*:?\s*([^\n]+)/i);
+        if(skillsMatch) document.getElementById('reg-bio').value = skillsMatch[1].trim();
+        if(bioMatch) document.getElementById('reg-bio').value += '\n' + bioMatch[1].trim();
+        if(!skillsMatch && !bioMatch) {
+            // Fallback: take first 200 chars as bio
+            document.getElementById('reg-bio').value = text.substring(0, 200) + '...';
+        }
+    }
+
+    async function registerNewCandidate() {
+        const email = document.getElementById('reg-email').value; const pass = document.getElementById('reg-pass').value;
+        const name = document.getElementById('reg-name').value; const mobile = document.getElementById('reg-mobile').value;
+        const city = document.getElementById('reg-city').value; const state = document.getElementById('reg-state').value;
+        const education = document.getElementById('reg-education').value; const work = document.getElementById('reg-work').value;
+        const bio = document.getElementById('reg-bio').value; const fileInput = document.getElementById('reg-resume-file');
+
+        if(!email || !pass || !name || !mobile || !city) { alert("Please fill all mandatory fields!"); return; }
+        document.getElementById('reg-btn').innerText = "Uploading & Registering...";
+
+        try {
+            const userCred = await auth.createUserWithEmailAndPassword(email, pass);
+            const uid = userCred.user.uid;
+            let resumeUrl = "";
+            if(fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const storageRef = storage.ref(`resumes/${uid}_${file.name}`);
+                const snapshot = await storageRef.put(file);
+                resumeUrl = await snapshot.ref.getDownloadURL();
+            }
+            const newCandidateData = { name, email, mobile, city, state, education, workHistory: work, bio, resumeUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+            await db.collection('candidates').doc(uid).set(newCandidateData);
+            alert("Account & Detailed Profile Created Successfully!");
+            closeRegisterModal(); document.getElementById('reg-btn').innerText = "Register & Enter App";
+        } catch(err) { alert(err.message); document.getElementById('reg-btn').innerText = "Register & Enter App"; }
+    }
+
+    function login() {
+        const email = document.getElementById('login-email').value; const pass = document.getElementById('login-pass').value;
+        auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            currentUser = user;
+            showScreen('main-screen');
+            
+            const doc = await db.collection('candidates').doc(user.uid).get();
+            if(doc.exists) {
+                candidateData = doc.data();
+                userCity = candidateData.city ? candidateData.city.toLowerCase() : "";
+            }
+            
+            fetchLiveJobs(); loadAppliedJobs();
+            if(window.innerWidth >= 1024) switchTab('applied');
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            // Listen for status updates for push notifications
+            db.collection('applications').where('candidateId', '==', user.uid).onSnapshot(snap => {
+                snap.docChanges().forEach(change => {
+                    if(change.type === 'modified') {
+                        const data = change.doc.data();
+                        if(data.status !== 'Applied' && ('Notification' in window) && Notification.permission === 'granted') {
+                            new Notification('Application Update', {
+                                body: `Your application for ${data.jobTitle} is now ${data.status}`,
+                                icon: '/favicon.ico'
+                            });
+                        }
+                    }
+                });
+            });
+
+            if(sharedJobId) {
+                setTimeout(() => openJobModal(sharedJobId, true), 1000); 
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        } else {
+            if(sharedJobId) {
+                showScreen('guest-screen');
+                loadGuestJobPreview(sharedJobId);
+            } else {
+                showScreen('auth-screen');
+            }
+        }
+    });
+
+    async function loadGuestJobPreview(jobId) {
+        try {
+            const doc = await db.collection('jobs').doc(jobId).get();
+            if(doc.exists) {
+                const j = doc.data();
+                const safeCompName = j.companyName || (j.companyEmail ? j.companyEmail.split('@')[0].toUpperCase() : 'Company');
+                document.getElementById('g-logo').innerText = safeCompName.substring(0,1).toUpperCase();
+                document.getElementById('g-company').innerText = safeCompName;
+                document.getElementById('g-title').innerText = j.title || 'Job Title';
+                document.getElementById('g-location').innerText = `${j.location || 'Not Specified'}`;
+                document.getElementById('g-salary').innerText = j.salary || '-';
+                document.getElementById('g-vacancy').innerText = j.vacancy || '-';
+                document.getElementById('g-desc').innerText = j.desc || 'No description provided.';
+            } else {
+                alert("This job post has expired or does not exist.");
+                showScreen('auth-screen');
+            }
+        } catch (e) {
+            console.error(e);
+            showScreen('auth-screen');
+        }
+    }
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if(screenId === 'main-screen' && window.innerWidth < 1024) { document.getElementById('mobile-top-header').style.display = 'flex'; } 
+        else { document.getElementById('mobile-top-header').style.display = 'none'; }
+    }
+
+    function fetchLiveJobs() {
+        db.collection('jobs').where('status', '==', 'Approved').onSnapshot(snap => {
+            allJobs = [];
+            snap.forEach(doc => { let jobData = doc.data(); jobData.id = doc.id; jobData.applyCount = jobData.applyCount || Math.floor(Math.random() * 50) + 1; allJobs.push(jobData); });
+            renderJobs();
+        });
+    }
+
+    function renderJobs() {
+        const swipeArea = document.getElementById('swipe-area'); swipeArea.innerHTML = ''; 
+        let filteredJobs = allJobs;
+        if (currentTabFilter === 'nearby' && userCity) { filteredJobs = allJobs.filter(job => job.location && job.location.toLowerCase().includes(userCity)); }
+        const searchQuery = document.getElementById('search-box') ? document.getElementById('search-box').value.toLowerCase() : "";
+        if (searchQuery) { filteredJobs = filteredJobs.filter(job => job.title.toLowerCase().includes(searchQuery) || (job.companyName && job.companyName.toLowerCase().includes(searchQuery))); }
+
+        if(filteredJobs.length === 0) { swipeArea.innerHTML = '<p style="color:var(--text-light);">No jobs found matching your criteria.</p>'; return; }
+
+        for (let i = filteredJobs.length - 1; i >= 0; i--) {
+            const job = filteredJobs[i];
+            const card = document.createElement('div'); card.className = 'card'; card.id = 'card-' + job.id;
+            card.style.transform = `scale(${1 - i*0.05}) translateY(${i*10}px)`; card.style.zIndex = filteredJobs.length - i;
+            
+            const compName = job.companyName || (job.companyEmail ? job.companyEmail.split('@')[0].toUpperCase() : 'Company');
+            const jobLoc = job.location || "Not Specified";
+            const verifiedBadge = job.isVerified ? '✅' : '';
+
+            card.innerHTML = `<div onclick="openJobModal('${job.id}')" style="flex:1; cursor:pointer;">
+                    <div class="company-header"><div class="company-logo">${compName.substring(0,1)}</div><div><div class="company-name">${compName} ${verifiedBadge}</div><div style="font-size:12px; color:var(--text-light);">${jobLoc}</div></div></div>
+                    <div class="job-title">${job.title}</div><div class="job-details">💰 Salary: ${job.salary}</div><div class="job-details">👥 Vacancies: ${job.vacancy}</div>
+                    <p style="margin-top:20px; color:var(--text-light); font-size:12px;">(Tap card to see Full Details & Description)</p>
+                </div>
+                <button class="report-btn" onclick="reportJob('${job.id}', event)">⚠️</button>
+                <div class="card-actions">
+                    <button class="btn-reject" onclick="swipeCard('${job.id}', 'left')">✖ Reject</button>
+                    <button class="btn-fav" onclick="toggleFavorite('${job.id}', event)">⭐ Save</button>
+                    <button class="btn-apply" onclick="swipeCard('${job.id}', 'right')">✔ Apply</button>
+                </div>`;
+            attachSwipeEvents(card, job.id); swipeArea.appendChild(card);
+        }
+    }
+
+    function filterJobsBySearch() { renderJobs(); }
+
+    function attachSwipeEvents(card, jobId) {
+        let startX = 0, currentX = 0, isDragging = false;
+        const startDrag = (e) => { startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX; isDragging = true; card.style.transition = 'none'; };
+        const moveDrag = (e) => { if (!isDragging) return; const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX; currentX = x - startX; const rotate = currentX * 0.05; const zIndexStr = card.style.zIndex; const index = allJobs.length - parseInt(zIndexStr); const scale = 1 - index * 0.05; card.style.transform = `translate(${currentX}px, ${index*10}px) scale(${scale}) rotate(${rotate}deg)`; };
+        const endDrag = (e) => { if (!isDragging) return; isDragging = false; card.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; if (currentX > 100) { swipeCard(jobId, 'right'); } else if (currentX < -100) { swipeCard(jobId, 'left'); } else { const zIndexStr = card.style.zIndex; const index = allJobs.length - parseInt(zIndexStr); const scale = 1 - index * 0.05; card.style.transform = `scale(${scale}) translateY(${index*10}px)`; } currentX = 0; };
+        card.addEventListener('touchstart', startDrag); card.addEventListener('touchmove', moveDrag); card.addEventListener('touchend', endDrag);
+        card.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', moveDrag); window.addEventListener('mouseup', endDrag);
+    }
+
+    function swipeCard(jobId, direction) {
+        const card = document.getElementById('card-' + jobId); if (!card) return;
+        if (direction === 'right') {
+            card.style.transform = `translateX(150%) rotate(30deg)`; card.style.opacity = '0';
+            setTimeout(() => { card.remove(); allJobs = allJobs.filter(j => j.id !== jobId); applyForJob(jobId); }, 300);
+        } else {
+            card.style.transform = `translateX(-150%) rotate(-30deg)`; lastRejectedJob = jobId; showUndoBtn(); card.style.opacity = '0';
+            setTimeout(() => { card.remove(); allJobs = allJobs.filter(j => j.id !== jobId); renderJobs(); }, 300);
+        }
+    }
+
+    function showUndoBtn() { const btn = document.getElementById('undo-btn'); btn.style.display = 'block'; setTimeout(() => { btn.style.display = 'none'; }, 3000); }
+    function undoSwipe() { if(!lastRejectedJob) return; document.getElementById('undo-btn').style.display = 'none'; fetchLiveJobs(); }
+
+    // NEW: Toggle Favorite
+    async function toggleFavorite(jobId, event) {
+        if(event) event.stopPropagation();
+        if(!currentUser) return alert('Please login to save favorites');
+        const favRef = db.collection('candidates').doc(currentUser.uid).collection('favorites').doc(jobId);
+        const doc = await favRef.get();
+        if(doc.exists) {
+            await favRef.delete();
+            alert('Removed from favorites');
+        } else {
+            const job = allJobs.find(j => j.id === jobId);
+            if(job) {
+                await favRef.set({ jobId: jobId, title: job.title, companyName: job.companyName, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                alert('Added to favorites!');
+            }
+        }
+    }
+
+    async function loadFavorites() {
+        if(!currentUser) return;
+        const container = document.getElementById('favorites-list');
+        const snap = await db.collection('candidates').doc(currentUser.uid).collection('favorites').orderBy('savedAt', 'desc').get();
+        container.innerHTML = '';
+        if(snap.empty) { container.innerHTML = '<p style="color:var(--text-light);">No saved jobs.</p>'; return; }
+        snap.forEach(doc => {
+            const f = doc.data();
+            container.innerHTML += `<div class="applied-item"><strong>${f.title}</strong> - ${f.companyName} <button onclick="toggleFavorite('${f.jobId}')" style="width:auto; padding:2px 8px; font-size:12px; background:#e74c3c;">Remove</button></div>`;
+        });
+    }
+
+    async function applyForJob(jobId) {
+        if(!currentUser) return;
+        try {
+            const appsRef = db.collection('applications');
+            const snapshot = await appsRef.where('candidateId', '==', currentUser.uid).where('jobId', '==', jobId).get();
+            if (!snapshot.empty) {
+                if (snapshot.size >= 2) { alert("Aap is job ke liye max (2 baar) apply kar chuke hain."); fetchLiveJobs(); return; }
+                const existingApp = snapshot.docs[0].data(); const diffHours = Math.abs(new Date() - (existingApp.appliedAt ? existingApp.appliedAt.toDate() : new Date())) / 36e5;
+                if (diffHours < 24) { alert(`Aapne pehle hi apply kiya hai. Dobara apply karne ke liye ${Math.ceil(24 - diffHours)} ghante wait karein.`); fetchLiveJobs(); return; }
+            }
+            const actualJob = allJobs.find(j => j.id === jobId) || await db.collection('jobs').doc(jobId).get().then(doc => ({...doc.data(), id: doc.id}));
+            const compName = actualJob.companyName || (actualJob.companyEmail ? actualJob.companyEmail.split('@')[0] : 'Company');
+            await db.collection('applications').add({ candidateId: currentUser.uid, companyId: actualJob.companyId || 'UNKNOWN', jobId: jobId, companyName: compName, jobTitle: actualJob.title || 'Job Title', status: 'Applied', candidateData: candidateData, appliedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            document.getElementById('notif-badge').style.display = 'block'; renderJobs(); 
+        } catch (error) { console.error("Error applying: ", error); }
+    }
+
+    // Applied Jobs with Pagination
+    function loadAppliedJobs() {
+        if(!currentUser) return;
+        db.collection('applications').where('candidateId', '==', currentUser.uid).orderBy('appliedAt', 'desc').limit(APPLIED_LIMIT).get().then(snap => {
+            renderAppliedList(snap);
+            lastAppliedDoc = snap.empty ? null : snap.docs[snap.docs.length-1];
+            document.getElementById('load-more-applied').style.display = snap.size < APPLIED_LIMIT ? 'none' : 'block';
+        });
+    }
+
+    function loadMoreApplied() {
+        if(!lastAppliedDoc) return;
+        db.collection('applications').where('candidateId', '==', currentUser.uid).orderBy('appliedAt', 'desc').startAfter(lastAppliedDoc).limit(APPLIED_LIMIT).get().then(snap => {
+            if(!snap.empty) {
+                lastAppliedDoc = snap.docs[snap.docs.length-1];
+                renderAppliedList(snap, true);
+                document.getElementById('load-more-applied').style.display = snap.size < APPLIED_LIMIT ? 'none' : 'block';
+            }
+        });
+    }
+
+    function renderAppliedList(snap, append = false) {
+        const list = document.getElementById('applied-list');
+        if(!append) list.innerHTML = '';
+        if(snap.empty && !append) { list.innerHTML = '<p style="color:var(--text-light);">No applications yet.</p>'; return; }
+        snap.forEach(doc => { const data = doc.data(); const safeCompName = data.companyName ? data.companyName.toUpperCase() : 'UNKNOWN';
+            list.innerHTML += `<div class="applied-item"><div class="company-name" style="font-size:16px;">${safeCompName}</div><div class="job-title" style="font-size:14px; margin-bottom: 5px;">${data.jobTitle}</div>
+                <div class="status-badge" style="background: ${data.status.includes('Selected') ? '#d4edda' : (data.status.includes('Reject') ? '#f8d7da' : '#e2e3e5')}; color: ${data.status.includes('Selected') ? '#155724' : (data.status.includes('Reject') ? '#721c24' : '#383d41')};">${data.status}</div></div>`;
+        });
+        document.getElementById('notif-badge').style.display = 'none'; 
+    }
+
+    // Profile Load & Update (same as before, but we added loadFavorites call)
+    async function loadUserProfile() {
+        const container = document.getElementById('profile-details-container');
+        if(!currentUser) return;
+        if(!candidateData) {
+            container.innerHTML = '<p style="color:var(--text-light); font-size: 14px;">Fetching profile...</p>';
+            const doc = await db.collection('candidates').doc(currentUser.uid).get();
+            if(doc.exists) candidateData = doc.data();
+            else { container.innerHTML = '<p style="color:var(--primary); font-size: 14px;">Profile not found.</p>'; return; }
+        }
+        container.innerHTML = `<div class="applied-item">
+                <label class="profile-label">Full Name</label>
+                <input type="text" id="edit-name" value="${candidateData.name || ''}">
+                <label class="profile-label">Mobile</label>
+                <input type="text" id="edit-mobile" value="${candidateData.mobile || ''}">
+                <div style="display:flex; gap:10px;">
+                    <div style="width:50%;"><label class="profile-label">City</label><input type="text" id="edit-city" value="${candidateData.city || ''}"></div>
+                    <div style="width:50%;"><label class="profile-label">State</label><input type="text" id="edit-state" value="${candidateData.state || ''}"></div>
+                </div>
+                <label class="profile-label">Education</label><input type="text" id="edit-education" value="${candidateData.education || ''}">
+                <label class="profile-label">Work Experience</label><textarea id="edit-work" rows="3">${candidateData.workHistory || ''}</textarea>
+                <label class="profile-label">Skills & Bio</label><textarea id="edit-bio" rows="3">${candidateData.bio || ''}</textarea>
+                ${candidateData.resumeUrl ? `<a href="${candidateData.resumeUrl}" target="_blank" style="color:var(--primary); font-weight:bold; display:block; margin-bottom:15px;">📄 View Current PDF</a>` : ''}
+                <button onclick="updateProfileData()">Save & Update Profile</button>
+            </div>`;
+    }
+
+    async function updateProfileData() {
+        if(!currentUser) return;
+        const updatedData = { 
+            name: document.getElementById('edit-name').value, mobile: document.getElementById('edit-mobile').value, 
+            city: document.getElementById('edit-city').value, state: document.getElementById('edit-state').value, 
+            education: document.getElementById('edit-education').value, workHistory: document.getElementById('edit-work').value, 
+            bio: document.getElementById('edit-bio').value 
+        };
+        try { 
+            await db.collection('candidates').doc(currentUser.uid).update(updatedData); 
+            candidateData = { ...candidateData, ...updatedData }; 
+            alert("Profile Updated!"); 
+        } catch (error) { alert("Error: " + error.message); }
+    }
+
+    function generatePDF() {
+        if(!candidateData) { alert("Profile data not loaded. Open 'My Profile' first."); return; }
+        const safeName = (candidateData.name || "Candidate").replace(/\s+/g, '_');
+        const element = document.createElement('div'); 
+        element.style.padding = '40px'; element.style.fontFamily = 'Arial, sans-serif'; element.style.color = '#333'; element.style.background = '#ffffff';
+        const watermark = document.createElement('div'); 
+        watermark.innerText = 'SwipeJobs'; watermark.style.position = 'absolute'; watermark.style.top = '50%'; watermark.style.left = '50%'; watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)'; watermark.style.fontSize = '80px'; watermark.style.fontWeight = 'bold'; watermark.style.color = 'rgba(0, 0, 0, 0.08)'; watermark.style.zIndex = '0'; watermark.style.pointerEvents = 'none';
+        const content = document.createElement('div'); content.style.position = 'relative'; content.style.zIndex = '1';
+        content.innerHTML = `
+            <h1 style="color:#ff4b4b; font-size:32px;">${candidateData.name || 'Candidate'}</h1>
+            <p>Email: ${candidateData.email || 'N/A'} | Mobile: ${candidateData.mobile || 'N/A'}</p>
+            <p>Location: ${candidateData.city || 'N/A'}, ${candidateData.state || 'N/A'}</p>
+            <hr style="margin:25px 0;"><h3 style="color:#ff4b4b;">Education</h3><p>${candidateData.education || 'Not Provided'}</p>
+            <h3 style="color:#ff4b4b;">Work Experience</h3><p style="white-space: pre-wrap;">${candidateData.workHistory || 'Not Provided'}</p>
+            <h3 style="color:#ff4b4b;">Skills & Bio</h3><p style="white-space: pre-wrap;">${candidateData.bio || 'Not Provided'}</p>
+        `;
+        element.appendChild(watermark); element.appendChild(content);
+        const opt = { margin: 0.5, filename: `${safeName}_SwipeJobs_CV.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+        html2pdf().set(opt).from(element).save();
+    }
+
+    function reportJob(jobId, event) { event.stopPropagation(); let reason = prompt("Report this job reason:"); if (reason && reason.trim() !== "") { db.collection('reports').add({ jobId: jobId, candidateId: currentUser.uid, reason: reason, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).then(() => alert("Report Submitted.")); } }
+
+    async function openJobModal(jobId, fetchFromDB = false) {
+        if(!jobId) return; 
+        if(fetchFromDB) {
+            const doc = await db.collection('jobs').doc(jobId).get();
+            if(doc.exists) { currentJobOnTop = {...doc.data(), id: doc.id}; } else { alert("Job not found."); return; }
+        } else {
+            currentJobOnTop = allJobs.find(j => j.id === jobId);
+        }
+        if(!currentJobOnTop) return; 
+        const compName = currentJobOnTop.companyName || (currentJobOnTop.companyEmail ? currentJobOnTop.companyEmail.split('@')[0].toUpperCase() : 'Company');
+        document.getElementById('m-company').innerText = compName; document.getElementById('m-location').innerText = `${currentJobOnTop.location || 'India'}`; document.getElementById('m-logo').innerText = compName.substring(0,1);
+        document.getElementById('m-title').innerText = currentJobOnTop.title; document.getElementById('m-type').innerText = currentJobOnTop.jobType || 'Full-Time'; document.getElementById('m-vacancy').innerText = currentJobOnTop.vacancy;
+        document.getElementById('m-salary').innerText = currentJobOnTop.salary; document.getElementById('m-desc').innerText = currentJobOnTop.desc || "No description."; document.getElementById('m-applycount').innerText = currentJobOnTop.applyCount || 0;
+        document.getElementById('job-modal').style.display = 'flex';
+    }
+
+    function closeJobModal() { document.getElementById('job-modal').style.display = 'none'; }
+    function applyFromModal() { if(currentJobOnTop) { swipeCard(currentJobOnTop.id, 'right'); closeJobModal(); } }
+
+    function openShareModal() {
+        if(!currentJobOnTop) return;
+        const compName = currentJobOnTop.companyName || 'an awesome company';
+        const roleName = currentJobOnTop.title || 'a great role';
+        currentShareUrl = window.location.origin + window.location.pathname + '?jobId=' + currentJobOnTop.id;
+        const shareText = `🚀 Hey! I found this awesome ${roleName} position at ${compName} paying ${currentJobOnTop.salary || 'great salary'}! Apply now via SwipeJobs:`;
+        document.getElementById('share-wa').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + currentShareUrl)}`;
+        document.getElementById('share-tg').href = `https://t.me/share/url?url=${encodeURIComponent(currentShareUrl)}&text=${encodeURIComponent(shareText)}`;
+        document.getElementById('share-tw').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentShareUrl)}`;
+        document.getElementById('share-modal').style.display = 'flex';
+    }
+    function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
+    function copyShareLink() {
+        navigator.clipboard.writeText(currentShareUrl).then(() => { alert("Link Copied!"); closeShareModal(); });
+    }
+
+</script>
+</body>
+</html>
