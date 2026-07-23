@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Scanner & Local Storage</title>
+    
+    <!-- Tailwind CSS for Mobile-Friendly UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tesseract.js for AI OCR Image Scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 p-2 md:p-8" onload="loadSavedData()">
+
+    <div class="max-w-4xl mx-auto space-y-6">
+        
+        <!-- Entry Section -->
+        <div class="bg-white p-5 rounded-lg shadow-md">
+            <h2 class="text-xl md:text-2xl font-bold mb-4 text-center text-gray-800">Smart Invoice Scanner</h2>
+            
+            <!-- File Upload -->
+            <div class="mb-5 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                <label for="invoiceImage" class="block text-gray-700 font-semibold mb-2">Upload Invoice Image</label>
+                <input type="file" id="invoiceImage" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+            </div>
+
+            <!-- Scanning Status -->
+            <div id="statusBox" class="hidden flex items-center justify-center space-x-2 mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                <div class="loader" id="spinner"></div>
+                <span id="statusText" class="font-medium">Scanning document... Please wait.</span>
+            </div>
+
+            <!-- Automated Form -->
+            <form id="invoiceForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Company Name</label>
+                        <input type="text" id="companyName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Invoice Number</label>
+                        <input type="text" id="invoiceNo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Invoice Date</label>
+                        <input type="text" id="invoiceDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Bill Amount (Rs.)</label>
+                        <input type="number" step="0.01" id="billAmount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="hidden">
+                    <textarea id="rawText"></textarea>
+                </div>
+
+                <button type="button" onclick="saveToLocalStorage()" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition duration-300">
+                    Save Data to Website
+                </button>
+            </form>
+        </div>
+
+        <!-- Database / Saved Records Section -->
+        <div class="bg-white p-5 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Saved Invoices</h2>
+                <button onclick="clearAllData()" class="bg-red-500 text-white text-xs px-3 py-2 rounded hover:bg-red-600">Clear All</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm whitespace-nowrap">
+                    <thead class="uppercase tracking-wider border-b-2 border-gray-200 bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-gray-600">Date</th>
+                            <th class="px-4 py-3 text-gray-600">Company</th>
+                            <th class="px-4 py-3 text-gray-600">Inv No</th>
+                            <th class="px-4 py-3 text-gray-600">Amount</th>
+                            <th class="px-4 py-3 text-gray-600">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody" class="divide-y divide-gray-200">
+                        <!-- Data will be injected here automatically -->
+                    </tbody>
+                </table>
+                <div id="noDataMsg" class="text-center text-gray-500 mt-4 hidden">No invoices saved yet.</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. OCR SCANNING LOGIC (Tesseract.js)
+        // ==========================================
+        document.getElementById('invoiceImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const statusBox = document.getElementById('statusBox');
+            const spinner = document.getElementById('spinner');
+            const statusText = document.getElementById('statusText');
+            
+            statusBox.classList.remove('hidden');
+            spinner.style.display = 'block';
+            statusText.innerText = 'Scanning image...';
+
+            Tesseract.recognize(
+                file,
+                'eng',
+                { logger: m => console.log(m.status) }
+            ).then(({ data: { text } }) => {
+                
+                spinner.style.display = 'none';
+                statusText.innerText = 'Scan Complete! Form Auto-filled.';
+                document.getElementById('rawText').value = text;
+
+                // Extraction Logic
+                if (text.toUpperCase().includes('SAWAMANI FILAMENT')) {
+                    document.getElementById('companyName').value = 'SAWAMANI FILAMENT';
+                }
+
+                let invMatch = text.match(/Inv\.?No\s*:\s*([A-Z0-9/-]+)/i);
+                if (invMatch && invMatch[1]) document.getElementById('invoiceNo').value = invMatch[1].trim();
+
+                let dateMatch = text.match(/Date\s*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
+                if (dateMatch && dateMatch[1]) document.getElementById('invoiceDate').value = dateMatch[1].trim();
+
+                let amountMatch = text.match(/Bill Amount\s*([\d.]+)/i);
+                if (amountMatch && amountMatch[1]) document.getElementById('billAmount').value = amountMatch[1].trim();
+                
+                setTimeout(() => { statusBox.classList.add('hidden'); }, 3000);
+            }).catch(err => {
+                spinner.style.display = 'none';
+                statusText.innerText = 'Error scanning image.';
+            });
+        });
+
+        // ==========================================
+        // 2. LOCAL STORAGE LOGIC (Save Data)
+        // ==========================================
+        function saveToLocalStorage() {
+            const company = document.getElementById('companyName').value;
+            const invNo = document.getElementById('invoiceNo').value;
+            const date = document.getElementById('invoiceDate').value;
+            const amount = document.getElementById('billAmount').value;
+
+            if(!invNo || !amount) {
+                alert('Please ensure Invoice Number and Amount are filled.');
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now(),
+                company: company || "Unknown",
+                invNo: invNo,
+                date: date || new Date().toLocaleDateString(),
+                amount: amount
+            };
+
+            // Get existing records or start empty array
+            let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
+            
+            // Add new record to array
+            savedRecords.push(newRecord);
+            
+            // Save back to Local Storage
+            localStorage.setItem('myInvoices', JSON.stringify(savedRecords));
+
+            document.getElementById('invoiceForm').reset();
+            alert('Invoice saved successfully to website data!');
+            
+            // Refresh table
+            loadSavedData();
+        }
+
+        // ==========================================
+        // 3. DISPLAY SAVED DATA (Read Logic)
+        // ==========================================
+        function loadSavedData() {
+            const tableBody = document.getElementById('dataTableBody');
+            const noDataMsg = document.getElementById('noDataMsg');
+            let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
+
+            tableBody.innerHTML = ''; // Clear current rows
+
+            if(savedRecords.length === 0) {
+                noDataMsg.classList.remove('hidden');
+            } else {
+                noDataMsg.classList.add('hidden');
+                
+                // Reverse loop so newest shows first
+                for(let i = savedRecords.length - 1; i >= 0; i--) {
+                    let record = savedRecords[i];
+                    let row = `<tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">${record.date}</td>
+                        <td class="px-4 py-3 font-medium">${record.company}</td>
+                        <td class="px-4 py-3">${record.invNo}</td>
+                        <td class="px-4 py-3 text-green-600 font-bold">₹${record.amount}</td>
+                        <td class="px-4 py-3">
+                            <button onclick="deleteRecord(${record.id})" class="text-red-500 hover:text-red-700 font-semibold text-xs">Delete</button>
+                        </td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. DELETE LOGIC
+        // ==========================================
+        function deleteRecord(id) {
+            if(confirm('Are you sure you want to delete this invoice?')) {
+                let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
+                savedRecords = savedRecords.filter(record => record.id !== id);
+                localStorage.setItem('myInvoices', JSON.stringify(savedRecords));
+                loadSavedData();
+            }
+        }
+
+        function clearAllData() {
+            if(confirm('WARNING: This will delete ALL saved invoices! Continue?')) {
+                localStorage.removeItem('myInvoices');
+                loadSavedData();
+            }
+        }
+    </script>
+</body>
+</html>
