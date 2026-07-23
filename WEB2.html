@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Invoice Manager</title>
+    <title>Universal Pro Invoice Manager</title>
     
     <!-- Tailwind CSS for Mobile Optimization -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,8 +16,7 @@
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Print Styles */
-        .print-view { background: white; padding: 20px; max-width: 800px; margin: 0 auto; border: 1px solid #ccc; font-family: 'Courier New', Courier, monospace; }
+        .print-view { background: white; padding: 20px; max-width: 800px; margin: 0 auto; border: 1px solid #ccc; }
         @media print {
             body { background: white; }
             .no-print { display: none !important; }
@@ -28,87 +27,75 @@
 <body>
 
     <!-- =========================
-         1. LOGIN PAGE
+         1. MAIN APP DASHBOARD
          ========================= -->
-    <div id="loginView" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full text-center">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6">Portal Login</h1>
-            <input type="text" id="username" placeholder="User ID (admin)" class="w-full p-3 mb-4 border rounded bg-gray-50 focus:outline-blue-500">
-            <input type="password" id="password" placeholder="Password (1234)" class="w-full p-3 mb-6 border rounded bg-gray-50 focus:outline-blue-500">
-            <button onclick="login()" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">Secure Login</button>
-            <p id="loginError" class="text-red-500 text-sm mt-3 hidden">Invalid ID or Password</p>
-        </div>
-    </div>
-
-    <!-- =========================
-         2. MAIN APP DASHBOARD
-         ========================= -->
-    <div id="appView" class="hidden min-h-screen p-4 md:p-8">
-        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div id="appView" class="min-h-screen p-2 md:p-8">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <!-- Left Panel: Data Entry & Scanner -->
-            <div class="bg-white p-5 rounded-xl shadow-md">
+            <!-- Left Panel: Universal Scanner & Form -->
+            <div class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
                 <div class="flex justify-between items-center mb-4 border-b pb-3">
-                    <h2 class="text-xl font-bold text-gray-800">New / Edit Entry</h2>
-                    <button onclick="logout()" class="text-red-500 text-sm font-semibold border px-2 py-1 rounded hover:bg-red-50">Logout</button>
+                    <h2 class="text-xl font-bold text-gray-800">Universal Invoice Scanner</h2>
                 </div>
                 
                 <!-- Fast Scan Buttons -->
                 <div class="grid grid-cols-2 gap-3 mb-5">
-                    <div class="relative bg-blue-50 border border-blue-200 border-dashed rounded p-3 text-center hover:bg-blue-100 cursor-pointer">
+                    <div class="relative bg-blue-50 border border-blue-200 border-dashed rounded p-3 text-center hover:bg-blue-100 cursor-pointer transition">
                         <label class="cursor-pointer block">
                             <span class="text-blue-700 font-bold block text-sm mb-1">📸 Camera Scan</span>
                             <input type="file" accept="image/*" capture="environment" class="hidden" id="cameraInput">
                         </label>
                     </div>
-                    <div class="relative bg-green-50 border border-green-200 border-dashed rounded p-3 text-center hover:bg-green-100 cursor-pointer">
+                    <div class="relative bg-green-50 border border-green-200 border-dashed rounded p-3 text-center hover:bg-green-100 cursor-pointer transition">
                         <label class="cursor-pointer block">
-                            <span class="text-green-700 font-bold block text-sm mb-1">📁 Upload Image</span>
+                            <span class="text-green-700 font-bold block text-sm mb-1">📁 Upload Invoice</span>
                             <input type="file" accept="image/*" class="hidden" id="fileInput">
                         </label>
                     </div>
                 </div>
 
-                <div id="statusBox" class="hidden flex items-center justify-center space-x-2 mb-4 p-2 bg-yellow-50 text-yellow-700 rounded text-sm">
+                <div id="statusBox" class="hidden flex items-center justify-center space-x-2 mb-4 p-2 bg-yellow-50 text-yellow-700 rounded text-sm font-bold">
                     <div class="loader" id="spinner"></div>
-                    <span id="statusText" class="font-medium">Extracting details...</span>
+                    <span id="statusText">AI analyzing document layout...</span>
                 </div>
 
-                <!-- Invoice Form -->
-                <form id="invoiceForm" class="space-y-3">
-                    <!-- Hidden input to store ID during editing -->
+                <!-- Universal Invoice Form -->
+                <form id="invoiceForm" class="space-y-4">
                     <input type="hidden" id="editId" value="">
                     
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Supplier Company Name</label>
-                            <input type="text" id="companyName" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none font-bold text-gray-800">
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Supplier / Exporter (Company)</label>
+                            <input type="text" id="companyName" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none font-bold text-gray-800 bg-gray-50" placeholder="Detected Company Name">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Invoice No.</label>
+                            <input type="text" id="invNo" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800 font-semibold" placeholder="e.g. INV2025-08">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Invoice No</label>
-                            <input type="text" id="invNo" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800">
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Date</label>
+                            <input type="text" id="invDate" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800 font-semibold" placeholder="DD/MM/YYYY">
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Date (DD/MM/YYYY)</label>
-                            <input type="text" id="invDate" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800">
-                        </div>
+                        
                         <div class="col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Billed To (Receiver Details)</label>
-                            <textarea id="billedTo" rows="2" class="w-full border rounded p-2 outline-none focus:border-blue-500 text-sm text-gray-800"></textarea>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Consignee / Billed To (Customer)</label>
+                            <textarea id="billedTo" rows="2" class="w-full border rounded p-2 outline-none focus:border-blue-500 text-sm text-gray-800 bg-gray-50" placeholder="Customer details will appear here..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Tax ID / GSTIN</label>
+                            <input type="text" id="taxId" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800" placeholder="Optional">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Supplier GSTIN</label>
-                            <input type="text" id="gstin" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none text-sm text-gray-800">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Total Bill Amount</label>
-                            <input type="number" id="totalAmount" step="0.01" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none font-bold text-green-600">
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Total Amount</label>
+                            <input type="text" id="totalAmount" class="w-full border-b-2 border-gray-300 focus:border-blue-500 p-2 outline-none font-bold text-green-600 text-lg" placeholder="e.g. 12000">
                         </div>
                     </div>
                     
                     <div class="flex space-x-3 mt-4">
-                        <button type="button" onclick="saveData()" class="flex-1 bg-gray-800 text-white font-bold py-3 rounded shadow hover:bg-gray-900" id="saveBtn">
-                            Save Invoice
+                        <button type="button" onclick="saveData()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded shadow hover:bg-blue-700 transition" id="saveBtn">
+                            Save Data securely
                         </button>
                         <button type="button" onclick="cancelEdit()" class="hidden bg-red-100 text-red-700 font-bold py-3 px-4 rounded shadow hover:bg-red-200" id="cancelBtn">
                             Cancel
@@ -117,112 +104,15 @@
                 </form>
             </div>
 
-            <!-- Right Panel: Grouped Database -->
-            <div class="bg-white p-5 rounded-xl shadow-md flex flex-col">
+            <!-- Right Panel: Smart Grouped Database -->
+            <div class="bg-white p-5 rounded-xl shadow-md flex flex-col border-t-4 border-gray-800">
                 <div class="flex justify-between items-center mb-4 border-b pb-3">
-                    <h2 class="text-xl font-bold text-gray-800">Company Databases</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Master Database</h2>
+                    <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Local Storage</span>
                 </div>
-                <!-- Dynamic Company List -->
-                <div class="overflow-y-auto flex-grow h-[32rem]">
-                    <div id="companyDatabases" class="space-y-4">
+                <div class="overflow-y-auto flex-grow h-[36rem]">
+                    <div id="companyDatabases" class="space-y-5">
                         <!-- Grouped lists inject here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- =========================
-         3. VIEW INVOICE MODAL
-         ========================= -->
-    <div id="viewModal" class="hidden fixed inset-0 z-50 bg-gray-900 bg-opacity-90 overflow-y-auto">
-        <div class="min-h-screen p-4 flex flex-col items-center">
-            
-            <!-- Controls -->
-            <div class="no-print w-full max-w-4xl flex justify-between items-center bg-white p-3 rounded-t-lg shadow mt-4">
-                <button onclick="closeView()" class="bg-red-500 text-white px-4 py-2 rounded font-bold">⬅ Back</button>
-                <div class="space-x-2">
-                    <button onclick="generateShareLink()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold">🔗 Share Link</button>
-                    <button onclick="window.print()" class="bg-green-600 text-white px-4 py-2 rounded font-bold">🖨️ Print/PDF</button>
-                </div>
-            </div>
-
-            <!-- Authentic Invoice Template (Matches 1000651005_3.jpg) -->
-            <div class="print-view shadow-2xl bg-white w-full max-w-4xl rounded-b-lg text-sm text-gray-900 pb-10" id="invoiceTemplate">
-                <div class="text-center mb-2 border-b-2 border-black pb-4">
-                    <p class="font-bold mb-2">!! SHREE GANESHAI NAMAH !!</p>
-                    <h1 class="text-3xl font-extrabold tracking-wider uppercase" id="viewCompany">SAWAMANI FILAMENT</h1>
-                    <p class="text-xs mt-2">WEB: WWW.SAWAMANIPOLYYARN.COM</p>
-                    <div class="flex justify-between text-xs font-bold mt-3">
-                        <p>GSTIN: <span id="viewGstin">24GMWPS3018G1ZM</span></p>
-                        <p>State Code: 24-GUJARAT</p>
-                        <p>PAN: <span id="viewPan">GMWPS3018G</span></p>
-                    </div>
-                </div>
-
-                <div class="text-center font-bold text-lg my-2 tracking-widest border-b-2 border-black pb-2">
-                    # TAX INVOICE #
-                </div>
-
-                <div class="flex flex-col md:flex-row justify-between border-b-2 border-black pb-2 mb-2">
-                    <div class="md:w-1/2 md:border-r-2 border-black pr-2">
-                        <p class="font-bold underline mb-1">Details of Receiver/Billed To:</p>
-                        <p id="viewBilledTo" class="whitespace-pre-wrap font-bold"></p>
-                    </div>
-                    <div class="md:w-1/2 pl-2 mt-4 md:mt-0 flex flex-col justify-between">
-                        <div>
-                            <table class="w-full text-left font-bold">
-                                <tr><td>Invoice No</td><td>: <span id="viewInvNo"></span></td></tr>
-                                <tr><td>Date</td><td>: <span id="viewDate"></span></td></tr>
-                                <tr><td>Supply Dt.</td><td>: <span id="viewDate2"></span></td></tr>
-                            </table>
-                        </div>
-                        <p class="font-bold text-right mt-4">Broker: DIRECT</p>
-                    </div>
-                </div>
-
-                <!-- Items Table -->
-                <div class="min-h-[250px] border-b-2 border-black">
-                    <table class="w-full text-left border-collapse">
-                        <tr class="border-b-2 border-black text-xs">
-                            <th class="p-1">Sr.Description</th>
-                            <th class="p-1">Hsn/Sac</th>
-                            <th class="p-1">Qty</th>
-                            <th class="p-1 text-right">Rate</th>
-                            <th class="p-1 text-right">Amount</th>
-                        </tr>
-                        <tr>
-                            <td class="p-2 align-top">1. TEXTILE GOODS AS PER INVOICE</td>
-                            <td class="p-2 align-top">998821</td>
-                            <td class="p-2 align-top">AS PER LOT</td>
-                            <td class="p-2 align-top text-right">--</td>
-                            <td class="p-2 align-top text-right font-bold" id="viewItemAmount"></td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- Totals -->
-                <div class="flex justify-end border-b-2 border-black p-2">
-                    <div class="w-64">
-                        <div class="flex justify-between font-bold text-lg border-t border-black pt-2">
-                            <span>Bill Amount</span>
-                            <span id="viewAmount"></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex justify-between mt-4 text-xs">
-                    <div>
-                        <p class="font-bold underline">Bank Details</p>
-                        <table class="mt-1 font-bold">
-                            <tr><td>Our Bank</td><td>: THE SUTEX CO-OPERATIVE BANK LTD.</td></tr>
-                            <tr><td>A/c.No.</td><td>: 001360011000054</td></tr>
-                            <tr><td>IFSC Code</td><td>: SUTB0248013</td></tr>
-                        </table>
-                    </div>
-                    <div class="text-right flex flex-col justify-end">
-                        <p class="font-bold mb-8">For <span id="viewSignCompany">SAWAMANI FILAMENT</span></p>
-                        <p class="font-bold">Authorise Signatory</p>
                     </div>
                 </div>
             </div>
@@ -233,48 +123,13 @@
          JAVASCRIPT LOGIC
          ========================= -->
     <script>
-        // Store current active record for sharing
-        let currentViewRecord = null;
-
-        // 1. ROUTING & INIT
         window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sharedData = urlParams.get('data');
-
-            if(sharedData) {
-                try {
-                    const invoice = JSON.parse(decodeURIComponent(escape(atob(sharedData))));
-                    populateView(invoice);
-                    document.getElementById('loginView').classList.add('hidden');
-                    document.getElementById('appView').classList.add('hidden');
-                    document.getElementById('viewModal').classList.remove('hidden');
-                } catch(e) { alert("Invalid Share Link"); }
-            } else if(localStorage.getItem('isLoggedIn') === 'true') {
-                showDashboard();
-            }
+            renderGroupedData();
         };
 
-        function login() {
-            if(document.getElementById('username').value === 'admin' && document.getElementById('password').value === '1234') {
-                localStorage.setItem('isLoggedIn', 'true');
-                showDashboard();
-            } else {
-                document.getElementById('loginError').classList.remove('hidden');
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('isLoggedIn');
-            location.reload();
-        }
-
-        function showDashboard() {
-            document.getElementById('loginView').classList.add('hidden');
-            document.getElementById('appView').classList.remove('hidden');
-            renderGroupedData();
-        }
-
-        // 2. SCANNING ENGINE
+        // ==========================================
+        // 1. SMART OCR SCANNING ENGINE
+        // ==========================================
         document.getElementById('cameraInput').addEventListener('change', handleScan);
         document.getElementById('fileInput').addEventListener('change', handleScan);
 
@@ -285,122 +140,173 @@
             const statusBox = document.getElementById('statusBox');
             statusBox.classList.remove('hidden');
             document.getElementById('spinner').style.display = 'block';
-            document.getElementById('statusText').innerText = 'Scanning rapidly...';
+            document.getElementById('statusText').innerText = 'Extracting dynamic data...';
 
-            Tesseract.recognize(file, 'eng')
+            Tesseract.recognize(file, 'eng', { logger: m => console.log(m.status) })
             .then(({ data: { text } }) => {
                 document.getElementById('spinner').style.display = 'none';
-                document.getElementById('statusText').innerText = 'Data Captured!';
+                document.getElementById('statusText').innerText = 'Data Extracted Successfully!';
                 
-                // Extraction Logic tailored to 1000651005_3.jpg structure
-                if (text.toUpperCase().includes('SAWAMANI')) {
-                    document.getElementById('companyName').value = 'SAWAMANI FILAMENT';
-                } else {
-                    document.getElementById('companyName').value = text.split('\n')[0].trim();
-                }
+                extractDynamicData(text);
 
-                let invMatch = text.match(/Inv\.?No\s*:\s*([A-Z0-9/-]+)/i);
-                if (invMatch) document.getElementById('invNo').value = invMatch[1].trim();
-
-                let dateMatch = text.match(/Date\s*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
-                if (dateMatch) document.getElementById('invDate').value = dateMatch[1].trim();
-
-                let gstMatch = text.match(/GSTIN\s*:\s*([0-9A-Z]{15})/i);
-                if (gstMatch) document.getElementById('gstin').value = gstMatch[1].trim();
-
-                let amountMatch = text.match(/Bill Amount\s*([\d.]+)/i);
-                if (amountMatch) document.getElementById('totalAmount').value = amountMatch[1].trim();
-
-                if (text.toUpperCase().includes('PADMINI')) {
-                    document.getElementById('billedTo').value = 'PADMINI TEXOFAB PRIVATE LIMITED\nFLAT NO. 315 R3, SY.\nNO.1401-1402 3RD FLOOR NR KADAMPALLI SOCIETY MAJURA GATE\nSURAT-395002';
-                }
-
-                setTimeout(() => statusBox.classList.add('hidden'), 2000);
+                setTimeout(() => statusBox.classList.add('hidden'), 3000);
             }).catch(err => {
                 document.getElementById('spinner').style.display = 'none';
-                document.getElementById('statusText').innerText = 'Scan Failed.';
+                document.getElementById('statusText').innerText = 'Scan Failed. Try clearer image.';
             });
         }
 
-        // 3. CRUD LOGIC (Grouped by Company)
+        // --- UNIVERSAL REGEX EXTRACTOR ---
+        function extractDynamicData(rawText) {
+            console.log("Raw OCR:", rawText); // For debugging in console
+            
+            // 1. Invoice Number (Catches: Invoice No:, Inv.No, Invoice #, Invoice)
+            let invMatch = rawText.match(/(?:Invoice|Inv)\s*(?:no|num|#|\.)?\s*[:\-]?\s*([A-Z0-9\-\/]+)/i);
+            if (invMatch) document.getElementById('invNo').value = invMatch[1].trim();
+
+            // 2. Date (Catches: Date:, Due Date, DD/MM/YYYY, DD-MM-YYYY, Aug 10, 2025)
+            let dateMatch = rawText.match(/(?:Date|Dt\.?)[\s\.:]*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}|[A-Za-z]+\s\d{1,2},?\s\d{4})/i);
+            if (dateMatch) document.getElementById('invDate').value = dateMatch[1].trim();
+
+            // 3. Amount (Catches: Total Amount, Bill Amount, $, EUR, EUR 38.00, $12,000)
+            // Advanced regex to find the biggest number near 'Total' or currency symbols
+            let amountMatch = rawText.match(/(?:Total(?: Amount)?|Bill Amount)[\s:Rs\.]*([\d,\.]+)/i);
+            if (!amountMatch) {
+                amountMatch = rawText.match(/[\$€£]|EUR\s*([\d,\.]+)/i);
+            }
+            if (amountMatch) document.getElementById('totalAmount').value = amountMatch[1].trim();
+
+            // 4. Tax ID / GSTIN
+            let taxMatch = rawText.match(/(?:GSTIN|GST|VAT|Tax ID)\s*[:\-]?\s*([0-9A-Z]{15})/i);
+            if (taxMatch) document.getElementById('taxId').value = taxMatch[1].trim();
+
+            // 5. Company Name (Heuristic: First prominent non-empty line or near 'Exporter')
+            let lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+            let company = "";
+            
+            // Try to find Exporter/Shipper specific to export invoices
+            let exporterIndex = lines.findIndex(l => l.toUpperCase().includes('EXPORTER') || l.toUpperCase().includes('SHIPPER'));
+            if (exporterIndex > -1 && lines[exporterIndex + 1]) {
+                company = lines[exporterIndex + 1];
+            } 
+            // Fallback: First major text block usually is the company name
+            else if (lines.length > 0) {
+                // Skip generic headers
+                for(let i=0; i<lines.length; i++) {
+                    if(!lines[i].toUpperCase().includes('INVOICE') && !lines[i].toUpperCase().includes('NAMAH')) {
+                        company = lines[i];
+                        break;
+                    }
+                }
+            }
+            document.getElementById('companyName').value = company.replace(/[^a-zA-Z0-9\s]/g, '');
+
+            // 6. Consignee / Billed To
+            let billedToIndex = lines.findIndex(l => l.toUpperCase().includes('CONSIGNEE') || l.toUpperCase().includes('BILLED TO') || l.toUpperCase().includes('BUYER'));
+            if (billedToIndex > -1) {
+                // Grab next 2-3 lines for address
+                let address = [];
+                for(let i=1; i<=3; i++) {
+                    if(lines[billedToIndex + i] && !lines[billedToIndex + i].toUpperCase().includes('INVOICE')) {
+                        address.push(lines[billedToIndex + i]);
+                    }
+                }
+                document.getElementById('billedTo').value = address.join(', ');
+            }
+        }
+
+        // ==========================================
+        // 2. CRUD LOGIC (Grouped Database)
+        // ==========================================
         function saveData() {
             const idInput = document.getElementById('editId').value;
             const data = {
                 id: idInput ? parseInt(idInput) : Date.now(),
-                company: document.getElementById('companyName').value.trim().toUpperCase(),
-                invNo: document.getElementById('invNo').value,
-                date: document.getElementById('invDate').value,
+                company: document.getElementById('companyName').value.trim() || "UNKNOWN COMPANY",
+                invNo: document.getElementById('invNo').value || "N/A",
+                date: document.getElementById('invDate').value || "N/A",
                 billedTo: document.getElementById('billedTo').value,
-                gstin: document.getElementById('gstin').value,
-                amount: document.getElementById('totalAmount').value
+                taxId: document.getElementById('taxId').value,
+                amount: document.getElementById('totalAmount').value || "0.00"
             };
 
-            if(!data.company || !data.invNo) return alert("Company & Inv No required!");
+            if(data.invNo === "N/A" && data.company === "UNKNOWN COMPANY") {
+                return alert("Please ensure at least Company or Invoice Number is filled.");
+            }
 
-            let records = JSON.parse(localStorage.getItem('proInvoices')) || [];
+            let records = JSON.parse(localStorage.getItem('universalInvoices')) || [];
             
             if(idInput) {
-                // Edit existing
                 const index = records.findIndex(r => r.id === data.id);
                 if(index > -1) records[index] = data;
-                cancelEdit(); // reset form
+                cancelEdit();
             } else {
-                // Add new
                 records.push(data);
             }
 
-            localStorage.setItem('proInvoices', JSON.stringify(records));
+            localStorage.setItem('universalInvoices', JSON.stringify(records));
             document.getElementById('invoiceForm').reset();
             renderGroupedData();
         }
 
         function renderGroupedData() {
             const list = document.getElementById('companyDatabases');
-            let records = JSON.parse(localStorage.getItem('proInvoices')) || [];
+            let records = JSON.parse(localStorage.getItem('universalInvoices')) || [];
             list.innerHTML = '';
 
             if(records.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-400 mt-10 font-bold">No Data. Scan an invoice to begin.</p>';
+                list.innerHTML = `
+                <div class="text-center py-10">
+                    <p class="text-gray-400 font-bold text-lg">No Records Found</p>
+                    <p class="text-xs text-gray-400">Scan any invoice to automatically create a database.</p>
+                </div>`;
                 return;
             }
 
-            // Group by Company
+            // Grouping Logic
             const grouped = records.reduce((acc, obj) => {
-                let key = obj.company || "UNKNOWN COMPANY";
+                let key = obj.company.toUpperCase();
                 if (!acc[key]) acc[key] = [];
                 acc[key].push(obj);
                 return acc;
             }, {});
 
-            // Create separated lists
             for (const [companyName, invoices] of Object.entries(grouped)) {
                 
-                // Sort inside company by date (Basic string comparison, assume DD/MM/YYYY)
-                invoices.sort((a, b) => {
-                    let dA = a.date.split('/').reverse().join('');
-                    let dB = b.date.split('/').reverse().join('');
-                    return dB.localeCompare(dA); // Newest first
-                });
+                // Sort by ID (newest first)
+                invoices.sort((a, b) => b.id - a.id);
+
+                let totalCompanyAmount = invoices.reduce((sum, inv) => {
+                    let num = parseFloat(inv.amount.replace(/[^0-9.-]+/g,""));
+                    return sum + (isNaN(num) ? 0 : num);
+                }, 0);
 
                 let companyHTML = `
-                <div class="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-4">
-                    <div class="bg-gray-200 p-3 border-b-2 border-gray-300">
-                        <h3 class="font-bold text-gray-800 text-lg uppercase">📂 ${companyName} <span class="text-xs bg-gray-600 text-white px-2 py-1 rounded ml-2">${invoices.length} Invoices</span></h3>
+                <div class="bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-800 p-3 text-white flex justify-between items-center">
+                        <h3 class="font-bold tracking-wider uppercase text-sm w-3/4 truncate">🏢 ${companyName}</h3>
+                        <span class="text-xs bg-gray-600 px-2 py-1 rounded">${invoices.length} Files</span>
                     </div>
-                    <div class="p-3 space-y-2">`;
+                    <div class="p-3 bg-gray-100 flex justify-between text-xs font-bold text-gray-600 border-b">
+                        <span>Total Tracked Volume:</span>
+                        <span class="text-blue-600">${totalCompanyAmount.toFixed(2)}</span>
+                    </div>
+                    <div class="p-2 space-y-2 max-h-60 overflow-y-auto">`;
 
                 invoices.forEach(inv => {
                     companyHTML += `
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-3 rounded border shadow-sm hover:border-blue-400 transition">
-                            <div class="w-full md:w-1/2 cursor-pointer" onclick="openView(${inv.id})">
-                                <p class="font-bold text-blue-700">Inv: ${inv.invNo}</p>
-                                <p class="text-xs text-gray-500 font-semibold mt-1">Date: ${inv.date} | Amt: ₹${inv.amount}</p>
+                        <div class="bg-white p-3 rounded border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between md:items-center hover:border-blue-300 transition">
+                            <div class="w-full md:w-2/3">
+                                <p class="font-bold text-gray-800 text-sm">Inv: <span class="text-blue-600">${inv.invNo}</span></p>
+                                <p class="text-xs text-gray-500 mt-1">Date: ${inv.date} | To: <span class="truncate">${inv.billedTo.substring(0, 20)}...</span></p>
                             </div>
-                            
-                            <div class="mt-3 md:mt-0 flex space-x-2 w-full md:w-auto justify-end">
-                                <button onclick="openView(${inv.id})" class="bg-green-100 text-green-700 font-bold px-3 py-1 rounded text-xs border border-green-300">View</button>
-                                <button onclick="editRecord(${inv.id})" class="bg-yellow-100 text-yellow-700 font-bold px-3 py-1 rounded text-xs border border-yellow-300">Edit</button>
-                                <button onclick="deleteRecord(${inv.id})" class="bg-red-100 text-red-700 font-bold px-3 py-1 rounded text-xs border border-red-300">Delete</button>
+                            <div class="w-full md:w-1/3 flex flex-col items-end mt-2 md:mt-0">
+                                <span class="font-bold text-green-600 mb-2">${inv.amount}</span>
+                                <div class="flex space-x-2">
+                                    <button onclick="editRecord(${inv.id})" class="text-blue-500 hover:text-blue-700 font-bold text-xs">Edit</button>
+                                    <span class="text-gray-300">|</span>
+                                    <button onclick="deleteRecord(${inv.id})" class="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
+                                </div>
                             </div>
                         </div>`;
                 });
@@ -410,9 +316,11 @@
             }
         }
 
-        // 4. EDIT & DELETE ACTIONS
+        // ==========================================
+        // 3. EDIT & DELETE ACTIONS
+        // ==========================================
         function editRecord(id) {
-            let records = JSON.parse(localStorage.getItem('proInvoices')) || [];
+            let records = JSON.parse(localStorage.getItem('universalInvoices')) || [];
             let record = records.find(r => r.id === id);
             if(record) {
                 document.getElementById('editId').value = record.id;
@@ -420,13 +328,11 @@
                 document.getElementById('invNo').value = record.invNo;
                 document.getElementById('invDate').value = record.date;
                 document.getElementById('billedTo').value = record.billedTo;
-                document.getElementById('gstin').value = record.gstin;
+                document.getElementById('taxId').value = record.taxId;
                 document.getElementById('totalAmount').value = record.amount;
                 
-                document.getElementById('saveBtn').innerText = "Update Invoice";
+                document.getElementById('saveBtn').innerText = "Update Record";
                 document.getElementById('cancelBtn').classList.remove('hidden');
-                
-                // Scroll to top for mobile
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -434,65 +340,17 @@
         function cancelEdit() {
             document.getElementById('editId').value = '';
             document.getElementById('invoiceForm').reset();
-            document.getElementById('saveBtn').innerText = "Save Invoice";
+            document.getElementById('saveBtn').innerText = "Save Data securely";
             document.getElementById('cancelBtn').classList.add('hidden');
         }
 
         function deleteRecord(id) {
-            if(confirm("Are you sure you want to permanently delete this invoice?")) {
-                let records = JSON.parse(localStorage.getItem('proInvoices')) || [];
+            if(confirm("Permanently delete this invoice record?")) {
+                let records = JSON.parse(localStorage.getItem('universalInvoices')) || [];
                 records = records.filter(r => r.id !== id);
-                localStorage.setItem('proInvoices', JSON.stringify(records));
+                localStorage.setItem('universalInvoices', JSON.stringify(records));
                 renderGroupedData();
             }
-        }
-
-        // 5. VIEW & SHARE
-        function openView(id) {
-            let records = JSON.parse(localStorage.getItem('proInvoices')) || [];
-            let record = records.find(r => r.id === id);
-            if(record) {
-                populateView(record);
-                document.getElementById('appView').classList.add('hidden');
-                document.getElementById('viewModal').classList.remove('hidden');
-            }
-        }
-
-        function populateView(record) {
-            currentViewRecord = record; // Save for share link
-            document.getElementById('viewCompany').innerText = record.company || 'N/A';
-            document.getElementById('viewSignCompany').innerText = record.company || 'N/A';
-            document.getElementById('viewGstin').innerText = record.gstin || 'N/A';
-            document.getElementById('viewPan').innerText = record.gstin ? record.gstin.substring(2, 12) : 'N/A';
-            document.getElementById('viewBilledTo').innerText = record.billedTo || 'N/A';
-            document.getElementById('viewInvNo').innerText = record.invNo || 'N/A';
-            document.getElementById('viewDate').innerText = record.date || 'N/A';
-            document.getElementById('viewDate2').innerText = record.date || 'N/A'; // Supply Date
-            
-            let amt = record.amount ? parseFloat(record.amount).toFixed(2) : '0.00';
-            document.getElementById('viewItemAmount').innerText = amt;
-            document.getElementById('viewAmount').innerText = amt;
-        }
-
-        function closeView() {
-            document.getElementById('viewModal').classList.add('hidden');
-            if(localStorage.getItem('isLoggedIn') === 'true') {
-                document.getElementById('appView').classList.remove('hidden');
-            } else {
-                window.location.href = window.location.href.split('?')[0]; // Reset URL if shared
-            }
-        }
-
-        function generateShareLink() {
-            if(!currentViewRecord) return;
-            const jsonStr = JSON.stringify(currentViewRecord);
-            const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
-            const baseUrl = window.location.href.split('?')[0];
-            const shareLink = `${baseUrl}?data=${base64Data}`;
-            
-            navigator.clipboard.writeText(shareLink).then(() => {
-                alert("Share Link Copied! Bheje gaye link pe click karke receiver direct ye invoice open aur print kar payega.");
-            });
         }
     </script>
 </body>
