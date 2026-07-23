@@ -3,233 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice Scanner & Local Storage</title>
+    <title>Pro Invoice Portal</title>
     
-    <!-- Tailwind CSS for Mobile-Friendly UI -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Tesseract.js for AI OCR Image Scanning -->
+    <!-- Tesseract.js (AI Scanner) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    
+    <!-- html2pdf for PDF Downloading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f3f4f6; }
+        .invoice-print-box { font-family: "Courier New", Courier, monospace; } /* Matches the dot-matrix print style of the image */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 p-2 md:p-8" onload="loadSavedData()">
+<body onload="checkAppState()">
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <!-- 1. LOGIN SCREEN -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Admin Login</h2>
+            <input type="text" id="userid" placeholder="User ID" class="w-full mb-4 p-3 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <input type="password" id="password" placeholder="Password" class="w-full mb-6 p-3 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <button onclick="login()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-md hover:bg-blue-700">Login to Dashboard</button>
+            <p class="text-xs text-gray-400 mt-4 text-center">Demo credentials: admin / admin</p>
+        </div>
+    </div>
+
+    <!-- 2. MAIN DASHBOARD (Hidden initially) -->
+    <div id="dashboardScreen" class="max-w-4xl mx-auto p-4 hidden">
+        <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
+            <h1 class="text-xl font-bold text-gray-800">Invoice Dashboard</h1>
+            <button onclick="logout()" class="text-red-500 font-semibold text-sm">Logout</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="flex justify-center mb-6">
+                <!-- Mobile Camera Trigger -->
+                <label for="cameraInput" class="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold cursor-pointer hover:bg-indigo-700 flex items-center shadow-lg">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Scan Invoice with Camera
+                </label>
+                <!-- capture="environment" opens back camera directly on mobile -->
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="processImage(event)">
+            </div>
+
+            <!-- Scanning Loader -->
+            <div id="scanLoader" class="hidden flex flex-col items-center justify-center py-4">
+                <div class="loader mb-2"></div>
+                <p class="text-blue-600 font-medium">Scanning Document AI...</p>
+            </div>
+
+            <hr class="my-6">
+
+            <h3 class="text-lg font-bold mb-4">Invoice Data Entry</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="seller" placeholder="Supplier Company (e.g. SAWAMANI)" class="border p-2 rounded">
+                <input type="text" id="buyer" placeholder="Billed To (e.g. PADMINI TEXOFAB)" class="border p-2 rounded">
+                <input type="text" id="invNo" placeholder="Invoice No" class="border p-2 rounded">
+                <input type="text" id="invDate" placeholder="Date (DD/MM/YYYY)" class="border p-2 rounded">
+                <input type="number" id="amount" placeholder="Total Amount" class="border p-2 rounded">
+            </div>
+            
+            <button onclick="generateShareLink()" class="mt-6 w-full bg-green-600 text-white font-bold py-3 rounded-md hover:bg-green-700">
+                Generate Shareable Link
+            </button>
+            
+            <div id="linkContainer" class="mt-4 hidden p-3 bg-green-50 border border-green-200 rounded text-sm break-all">
+                <p class="font-bold text-green-800 mb-1">Link Generated! Copy & Share:</p>
+                <a id="shareLinkURL" href="#" target="_blank" class="text-blue-600 underline"></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. PUBLIC INVOICE VIEW (For Shared Links) -->
+    <div id="publicInvoiceScreen" class="max-w-3xl mx-auto p-2 md:p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-700">View Invoice</h2>
+            <button onclick="downloadPDF()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-blue-700">Download PDF</button>
+        </div>
         
-        <!-- Entry Section -->
-        <div class="bg-white p-5 rounded-lg shadow-md">
-            <h2 class="text-xl md:text-2xl font-bold mb-4 text-center text-gray-800">Smart Invoice Scanner</h2>
-            
-            <!-- File Upload -->
-            <div class="mb-5 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                <label for="invoiceImage" class="block text-gray-700 font-semibold mb-2">Upload Invoice Image</label>
-                <input type="file" id="invoiceImage" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+        <!-- Exact format of 1000651005_2.jpg for PDF rendering -->
+        <div id="invoicePrintArea" class="bg-white p-6 md:p-10 shadow-lg border border-gray-200 invoice-print-box text-xs md:text-sm">
+            <div class="text-center border-b-2 border-black pb-4 mb-4">
+                <h3 class="text-lg font-bold">!! SHREE GANESHAI NAMAH !!</h3>
+                <h1 class="text-2xl font-bold mt-2" id="printSeller">SAWAMANI FILAMENT</h1>
+                <p>PLOT NO. 15-16-17 SURAT</p>
+                <div class="flex justify-between mt-4 font-bold">
+                    <span>GSTIN: 24GMWPS3018G1ZM</span>
+                    <span># TAX INVOICE #</span>
+                    <span>PAN: GMWPS3018G</span>
+                </div>
             </div>
 
-            <!-- Scanning Status -->
-            <div id="statusBox" class="hidden flex items-center justify-center space-x-2 mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                <div class="loader" id="spinner"></div>
-                <span id="statusText" class="font-medium">Scanning document... Please wait.</span>
-            </div>
-
-            <!-- Automated Form -->
-            <form id="invoiceForm" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Company Name</label>
-                        <input type="text" id="companyName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+            <div class="grid grid-cols-2 gap-4 border-b-2 border-black pb-4 mb-4">
+                <div>
+                    <h4 class="font-bold border-b border-black inline-block mb-1">Details of Receiver/Billed To:</h4>
+                    <div id="printBuyer" class="font-bold text-base mt-1">PADMINI TEXOFAB PRIVATE LIMITED</div>
+                    <p>SURAT-395002</p>
+                </div>
+                <div class="border-l-2 border-black pl-4">
+                    <div class="flex justify-between">
+                        <span>Invoice No:</span>
+                        <span id="printInvNo" class="font-bold">TYJ0000039/26-27</span>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Invoice Number</label>
-                        <input type="text" id="invoiceNo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Invoice Date</label>
-                        <input type="text" id="invoiceDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Bill Amount (Rs.)</label>
-                        <input type="number" step="0.01" id="billAmount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div class="flex justify-between mt-1">
+                        <span>Date:</span>
+                        <span id="printDate">23/05/2026</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="hidden">
-                    <textarea id="rawText"></textarea>
+            <table class="w-full mb-4 border-collapse">
+                <thead>
+                    <tr class="border-b-2 border-t-2 border-black">
+                        <th class="text-left py-1">Description</th>
+                        <th class="text-right py-1">Weight</th>
+                        <th class="text-right py-1">Rate</th>
+                        <th class="text-right py-1">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="py-2">TEXTILE YARN / FABRIC</td>
+                        <td class="text-right py-2">2750.420 KGS</td>
+                        <td class="text-right py-2">12.25</td>
+                        <td class="text-right py-2 font-bold">As per Bill</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="border-t-2 border-black pt-2 flex justify-between items-center font-bold text-lg mb-8">
+                <span>Bill Amount</span>
+                <span id="printAmount">Rs. 26302.00</span>
+            </div>
+
+            <div class="grid grid-cols-2 text-xs border-t-2 border-black pt-4">
+                <div>
+                    <h4 class="font-bold underline mb-1">Bank Details</h4>
+                    <p>Our Bank : THE SUTEX CO-OPERATIVE BANK LTD.</p>
+                    <p>A/c.No.  : 001360011000054</p>
+                    <p>Ifsc Code: SUTB0248013</p>
                 </div>
-
-                <button type="button" onclick="saveToLocalStorage()" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition duration-300">
-                    Save Data to Website
-                </button>
-            </form>
-        </div>
-
-        <!-- Database / Saved Records Section -->
-        <div class="bg-white p-5 rounded-lg shadow-md">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Saved Invoices</h2>
-                <button onclick="clearAllData()" class="bg-red-500 text-white text-xs px-3 py-2 rounded hover:bg-red-600">Clear All</button>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-left text-sm whitespace-nowrap">
-                    <thead class="uppercase tracking-wider border-b-2 border-gray-200 bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-gray-600">Date</th>
-                            <th class="px-4 py-3 text-gray-600">Company</th>
-                            <th class="px-4 py-3 text-gray-600">Inv No</th>
-                            <th class="px-4 py-3 text-gray-600">Amount</th>
-                            <th class="px-4 py-3 text-gray-600">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dataTableBody" class="divide-y divide-gray-200">
-                        <!-- Data will be injected here automatically -->
-                    </tbody>
-                </table>
-                <div id="noDataMsg" class="text-center text-gray-500 mt-4 hidden">No invoices saved yet.</div>
+                <div class="text-right mt-auto">
+                    <p>For SAWAMANI FILAMENT</p>
+                    <p class="mt-8">Authorise Signatory</p>
+                </div>
             </div>
         </div>
-
     </div>
 
     <script>
-        // ==========================================
-        // 1. OCR SCANNING LOGIC (Tesseract.js)
-        // ==========================================
-        document.getElementById('invoiceImage').addEventListener('change', function(e) {
-            const file = e.target.files[0];
+        // --- 1. App State & Navigation ---
+        function checkAppState() {
+            // Check if this is a shared link (looks for ?data= in URL)
+            const params = new URLSearchParams(window.location.search);
+            const sharedData = params.get('data');
+
+            if (sharedData) {
+                // If it's a shared link, open the public invoice view directly
+                showScreen('publicInvoiceScreen');
+                loadSharedData(sharedData);
+            } else {
+                // Check login status
+                if (localStorage.getItem('isLoggedIn') === 'true') {
+                    showScreen('dashboardScreen');
+                } else {
+                    showScreen('loginScreen');
+                }
+            }
+        }
+
+        function showScreen(screenId) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('dashboardScreen').classList.add('hidden');
+            document.getElementById('publicInvoiceScreen').classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        // --- 2. Authentication ---
+        function login() {
+            const uid = document.getElementById('userid').value;
+            const pass = document.getElementById('password').value;
+            if(uid === 'admin' && pass === 'admin') {
+                localStorage.setItem('isLoggedIn', 'true');
+                showScreen('dashboardScreen');
+            } else {
+                alert('Invalid Credentials!');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            showScreen('loginScreen');
+        }
+
+        // --- 3. Camera Scan & OCR ---
+        function processImage(event) {
+            const file = event.target.files[0];
             if(!file) return;
 
-            const statusBox = document.getElementById('statusBox');
-            const spinner = document.getElementById('spinner');
-            const statusText = document.getElementById('statusText');
-            
-            statusBox.classList.remove('hidden');
-            spinner.style.display = 'block';
-            statusText.innerText = 'Scanning image...';
+            document.getElementById('scanLoader').classList.remove('hidden');
 
-            Tesseract.recognize(
-                file,
-                'eng',
-                { logger: m => console.log(m.status) }
-            ).then(({ data: { text } }) => {
+            Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
+            .then(({ data: { text } }) => {
+                document.getElementById('scanLoader').classList.add('hidden');
                 
-                spinner.style.display = 'none';
-                statusText.innerText = 'Scan Complete! Form Auto-filled.';
-                document.getElementById('rawText').value = text;
-
-                // Extraction Logic
-                if (text.toUpperCase().includes('SAWAMANI FILAMENT')) {
-                    document.getElementById('companyName').value = 'SAWAMANI FILAMENT';
-                }
+                // Extraction Logic based on 1000651005_2.jpg
+                const txtUpper = text.toUpperCase();
+                
+                if (txtUpper.includes('SAWAMANI')) document.getElementById('seller').value = 'SAWAMANI FILAMENT';
+                if (txtUpper.includes('PADMINI')) document.getElementById('buyer').value = 'PADMINI TEXOFAB PVT LTD';
 
                 let invMatch = text.match(/Inv\.?No\s*:\s*([A-Z0-9/-]+)/i);
-                if (invMatch && invMatch[1]) document.getElementById('invoiceNo').value = invMatch[1].trim();
+                if (invMatch) document.getElementById('invNo').value = invMatch[1].trim();
 
                 let dateMatch = text.match(/Date\s*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
-                if (dateMatch && dateMatch[1]) document.getElementById('invoiceDate').value = dateMatch[1].trim();
+                if (dateMatch) document.getElementById('invDate').value = dateMatch[1].trim();
 
                 let amountMatch = text.match(/Bill Amount\s*([\d.]+)/i);
-                if (amountMatch && amountMatch[1]) document.getElementById('billAmount').value = amountMatch[1].trim();
+                if (amountMatch) document.getElementById('amount').value = amountMatch[1].trim();
                 
-                setTimeout(() => { statusBox.classList.add('hidden'); }, 3000);
+                alert("Scan Complete! Data Auto-filled.");
             }).catch(err => {
-                spinner.style.display = 'none';
-                statusText.innerText = 'Error scanning image.';
+                document.getElementById('scanLoader').classList.add('hidden');
+                alert("Error scanning. Please fill manually.");
             });
-        });
+        }
 
-        // ==========================================
-        // 2. LOCAL STORAGE LOGIC (Save Data)
-        // ==========================================
-        function saveToLocalStorage() {
-            const company = document.getElementById('companyName').value;
-            const invNo = document.getElementById('invoiceNo').value;
-            const date = document.getElementById('invoiceDate').value;
-            const amount = document.getElementById('billAmount').value;
-
-            if(!invNo || !amount) {
-                alert('Please ensure Invoice Number and Amount are filled.');
-                return;
-            }
-
-            const newRecord = {
-                id: Date.now(),
-                company: company || "Unknown",
-                invNo: invNo,
-                date: date || new Date().toLocaleDateString(),
-                amount: amount
+        // --- 4. Generate Shareable Link (No Database Needed) ---
+        function generateShareLink() {
+            const data = {
+                seller: document.getElementById('seller').value,
+                buyer: document.getElementById('buyer').value,
+                invNo: document.getElementById('invNo').value,
+                date: document.getElementById('invDate').value,
+                amount: document.getElementById('amount').value
             };
 
-            // Get existing records or start empty array
-            let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
+            // Convert object to a Base64 string for URL
+            const encodedData = btoa(JSON.stringify(data));
             
-            // Add new record to array
-            savedRecords.push(newRecord);
-            
-            // Save back to Local Storage
-            localStorage.setItem('myInvoices', JSON.stringify(savedRecords));
+            // Generate full URL
+            const baseUrl = window.location.href.split('?')[0];
+            const shareUrl = `${baseUrl}?data=${encodedData}`;
 
-            document.getElementById('invoiceForm').reset();
-            alert('Invoice saved successfully to website data!');
+            const linkContainer = document.getElementById('linkContainer');
+            const linkElement = document.getElementById('shareLinkURL');
             
-            // Refresh table
-            loadSavedData();
+            linkElement.href = shareUrl;
+            linkElement.innerText = shareUrl;
+            linkContainer.classList.remove('hidden');
         }
 
-        // ==========================================
-        // 3. DISPLAY SAVED DATA (Read Logic)
-        // ==========================================
-        function loadSavedData() {
-            const tableBody = document.getElementById('dataTableBody');
-            const noDataMsg = document.getElementById('noDataMsg');
-            let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
-
-            tableBody.innerHTML = ''; // Clear current rows
-
-            if(savedRecords.length === 0) {
-                noDataMsg.classList.remove('hidden');
-            } else {
-                noDataMsg.classList.add('hidden');
+        // --- 5. Render Shared Invoice ---
+        function loadSharedData(encodedData) {
+            try {
+                // Decode from Base64
+                const data = JSON.parse(atob(encodedData));
                 
-                // Reverse loop so newest shows first
-                for(let i = savedRecords.length - 1; i >= 0; i--) {
-                    let record = savedRecords[i];
-                    let row = `<tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3">${record.date}</td>
-                        <td class="px-4 py-3 font-medium">${record.company}</td>
-                        <td class="px-4 py-3">${record.invNo}</td>
-                        <td class="px-4 py-3 text-green-600 font-bold">₹${record.amount}</td>
-                        <td class="px-4 py-3">
-                            <button onclick="deleteRecord(${record.id})" class="text-red-500 hover:text-red-700 font-semibold text-xs">Delete</button>
-                        </td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
-                }
+                // Inject into print template
+                if(data.seller) document.getElementById('printSeller').innerText = data.seller;
+                if(data.buyer) document.getElementById('printBuyer').innerText = data.buyer;
+                if(data.invNo) document.getElementById('printInvNo').innerText = data.invNo;
+                if(data.date) document.getElementById('printDate').innerText = data.date;
+                if(data.amount) document.getElementById('printAmount').innerText = 'Rs. ' + parseFloat(data.amount).toFixed(2);
+                
+            } catch(e) {
+                alert("Invalid or corrupted invoice link.");
             }
         }
 
-        // ==========================================
-        // 4. DELETE LOGIC
-        // ==========================================
-        function deleteRecord(id) {
-            if(confirm('Are you sure you want to delete this invoice?')) {
-                let savedRecords = JSON.parse(localStorage.getItem('myInvoices')) || [];
-                savedRecords = savedRecords.filter(record => record.id !== id);
-                localStorage.setItem('myInvoices', JSON.stringify(savedRecords));
-                loadSavedData();
-            }
-        }
+        // --- 6. PDF Download ---
+        function downloadPDF() {
+            const element = document.getElementById('invoicePrintArea');
+            const opt = {
+                margin:       0.5,
+                filename:     `Invoice_${document.getElementById('printInvNo').innerText.replace(/\//g, '-')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
 
-        function clearAllData() {
-            if(confirm('WARNING: This will delete ALL saved invoices! Continue?')) {
-                localStorage.removeItem('myInvoices');
-                loadSavedData();
-            }
+            // Process with html2pdf
+            html2pdf().set(opt).from(element).save();
         }
     </script>
 </body>
